@@ -1,0 +1,296 @@
+2018年8月3日
+cluster
+hpc高计算  lb负载均衡   ha高可用
+top500 cpu+gpu(ibm,nvidia)
+1PB=1024T  10GBps
+04-11 linux 14-16 python
+
+1day 存储:iscsi udev multipath nfs
+2-3day 集群:LB HA
+4-5day ceph 文件系统(与openstack有关)
+
+有名的存储厂商 dell 华为 netapp
+1U=4.445厘米
+
+存储分为三种DAS直连式  NAS网络附加存储 SAN存储区域网络
+
+DAS直连式存储  硬盘
+
+NAS:网络附加存储,通过以太网连接(最大能达10Gb)  1Mbps  迅雷:5MBps   1B(字节)=8b(比特)
+(分nfs(网络文件系统)和cifs(通用互联网文件系统)两种格式,同构和异构) samba   tcp/ip协议:传输数据包
+
+SAN存储区域网络 走scsi协议:传输块
+(SAN可作硬件,由很多)
+一通过fc光纤(FC-SAN)  8Gbps   HBA卡PCI接口(主机总线适配置器)     多加数量增加带宽,一般是2个或2个以上 
+二通过sas(比fc粗好多)   6Gbps  多加数量增加带宽,一般是2个或2个以上
+三(通过网线IP-SAN)通过ethernet:以太网,走iscsi协议(先封包再解包,效率低)
+scsi和iscsi区别?
+SAN性能比NAS性能好很多
+
+NAS和SAN的区别
+协议不同,文件格式不同,性能SAN更强
+
+
+virsh destroy host50
+++++++++++++++++++++++++++++++++++++++++++++++++++
+ISCSI部署
+target端,提供存储
+192.168.4.71
+71 ~]# yum -y install targetcli
+[root@san71 ~]# which targetcli
+/usr/bin/targetcli
+[root@san71 ~]# file /usr/bin/targetcli
+/usr/bin/targetcli: Pthon script, ASCII text executable
+添加一块硬盘vdb  
+virtlo(vd)  SCSI SATA 格式
+71 ~]# lsblk    --->vdb
+71 ~]# targetcli
+/> 
+/> ls
+o- / ...................................................... [...]
+  o- backstores ........................................... [...]
+  | o- block ............................... [Storage Objects: 0]
+  | o- fileio .............................. [Storage Objects: 0]
+  | o- pscsi ............................... [Storage Objects: 0]
+  | o- ramdisk ............................. [Storage Objects: 0]
+  o- iscsi ......................................... [Targets: 0]
+  o- loopback ...................................... [Targets: 0
+1.1创建后端存储
+/> cd backstores/block
+/backstores/block> pwd
+/backstores/block
+/> backstores/block create ipsan /dev/vdb
+Created block storage object ipsan using /dev/vdb
+1.2创建iqn
+/> iscsi/ create iqn.2018-08.cn.tedu:server1   (建好有提示端口号3260,域名倒着写)
+1.3授权客户机访问控制
+/> iscsi/iqn.2018-08.cn.tedu:server1/tpg1/acls create iqn.2018-08.cn.tedu:client1
+1.4邦定后端存储
+/> iscsi/iqn.2018-08.cn.tedu:server1/tpg1/luns create /backstores/block/ipsan
+1.5保存配置
+/> saveconfig
+1.6
+71 ~]# ss -antpl | grep :3260
+LISTEN     0      256          *:3260 
+1.7 
+71 ~]# systemctl is-enabled target      //查看是否开机自启enabled
+disabled
+71 ~]# systemctl enabled target
+
+
+initiator端,使用存储端,运行mysql服务
+192.168.4.72
+72 ~]#  yum -y install iscsi-initiator-utils
+72 ~]# systemctl restart iscsi
+
+2)修改配置
+72 ~]# vim /etc/iscsi/initiatorname.iscsi 
+InitiatorName=iqn.2018-08.cn.tedu:client1
+:wq
+72 ~]# man iscsiadm
+72 ~]# iscsiadm --mode discoverydb --type sendtargets --portal 192.168.4.71 --discover
+192.168.4.71:3260,1 iqn.2018-08.cn.tedu:server1
+
+3)重启服务,发现存储/dev/sda
+72 ~]# systemctl restart iscsi
+[root@mysql72 ~]# lsblk
+NAME          MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+sda             8:0    0   20G  0 disk            //ISCSI网络磁盘
+sr0            11:0    1 1024M  0 rom  
+vda           252:0    0   20G  0 disk 
+├─vda1        252:1    0    1G  0 part /boot
+└─vda2        252:2    0   19G  0 part 
+  ├─rhel-root 253:0    0   17G  0 lvm  /
+  └─rhel-swap 253:1    0    2G  0 lvm  [SWAP]
+4)格式化后使用
+72 ~]# mkfs.ext4 /dev/sda
+/dev/sda is entire device, not just one partition
+72 ~]# blkid /dev/sda
+/dev/sda: UUID="c1324919-d2a7-4aba-abb1-dfb07330bd8f" TYPE="ext4
+
+5)安装数据库软件
+72 ~]# yum -y install mariadb-server
+
+6)开机自动挂载:vim /etc/fatab
+UUID=c1324919-d2a7-4aba-abb1-dfb07330bd8f /var/lib/mysql ext4 defaults,_netdev 0 0 
+:wq
+注意:ISCSI退出,再插U盘,那么U盘会是sda,如果挂载/dev/sda会有冲突,持载UUID(唯一性)不会有冲突
+72 ~]# mount -a
+72 ~]# chown mysql.mysql /var/lib/mysql/
+72 ~]# systemctl start mariadb
+
+(ext4和xfs是本地文件系统,只能单台挂载使用,如多台挂载使用容易破坏数据
+NFS是网络文件系统可以多台挂载使用)
+gfs
+
+在san71主机上再授权多一台客户端
+/> iscsi/iqn.2018-08.cn.tedu:server1/tpg1/acls/ create iqn.2018-08.cn.tedu:client2
+
+在mysql73
+73~]# vim /etc/iscsi/initiatorname.iscsi 
+InitiatorName=iqn.2018-08.cn.tedu:client2
+:wq
+73 ~]# iscsiadm --mode discoverydb --type sendtargets --portal 192.168.4.71 --discove
+192.168.4.71:3260,1 iqn.2018-08.cn.tedu:server1
+73 ~]# systemctl start iscsi
+73 ~]# lsblk  能查看到块设备
+NAME          MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+sda             8:0    0   20G  0 disk 
+
+73 ~]# mount /dev/sda /var/lib/mysql/
+73 ~]# systemctl restart mariadb
+73 ~]# mysql
+
+清理工作
+73 ~]# systemctl stop mariadb
+73 ~]# yum -y install tree
+73 ~]# tree /var/lib/iscsi/
+iqn.2018-08.cn.tedu:server1
+73 ~]# iscsiadm -m node -T iqn.2018-08.cn.tedu:server1 -p 192.168.4.71 -u
+
+
++++++++++++++++++++++++++++++++++++++++++
+udev 动态管理设务
+编写udev规则,给设务改名
+72 ~]# udevadm info -a -p /block/sda|less
+(再开多一个终端)
+2 ~]# cd /etc/udev/rules.d
+]# vim /etc/udev/rules.d/100-ipsan.rules
+SUBSYSTEM=="block",ATTR{size}=="41943040",ATTRS{vendor}=="LIO-ORG ",SYMLINK+="ipsan"
+:wq
+(最后的ipsan是手写的)
+]# systemctl restart systemd-udev-trigger.service
+]# ls /dev/ipsan/dev/ipsan
+]# ll /dev/ipsan
+lrwxrwxrwx. 1 root root 3 8月   3 15:52 /dev/ipsan -> sda
+
+注意:
+如果有两个sda,sdb,以上的参数不是唯一了,只能通过WWID(唯一性)
+72 ~]# /usr/lib/udev/scsi_id -g -u /dev/sda
+360014055511b73acddf4e8db4c111dfb
+
+]# vim /etc/udev/rules.d/100-ipsan.rules
+SUBSYSTEM=="block",ATTR{size}=="41943040",ATTRS{vendor}=="LIO-ORG ",
+PROGRAN="/usr/lib/udev/scsi_id -g -u /dev/sda",RESULT="360014055511b73acddf4e8db4c111dfb",SYMLINK+="ipsan"
+:wq
+
+最终版
+]# vim /etc/udev/rules.d/100-ipsan.rules
+SUBSYSTEM=="block",ATTR{size}=="41943040",ATTRS{vendor}=="LIO-ORG ",
+PROGRAN="/usr/lib/udev/scsi_id -g -u $devnode ",RESULT="360014055511b73acddf4e8db4c111dfb",SYMLINK+="ipsan"
+:wq
+
+++++++++++++++++++++++++++++++++++++++++++++++++++
+NFS
+
++++++++++++++++++++++++++++++++++++++++++++++++++++
+Multipath
+一般配主主模式,主备模式有点浪费
+san:
+192.168.4.71
+192.168.2.71
+
+mysql72
+192.168.4.72
+192.168.2.72
+
+72 ~]# nmcli connection add type ethernet  con-name eth1 ifname eth1
+root@mysql72 ~]# nmcli con modify eth1 ipv4.method manual ipv4.addresses 192.168.2.72/24
+[root@mysql72 ~]# nmcli con up eth1
+
+71 ~]# nmcli con add type ethernet ifname eth1
+71 ~]# nmcli con modify "ethernet-eth1" ipv4.method manual ipv4.addresses 192.168.2.71/24
+71 ~]# nmcli con up "ethernet-eth1"
+71 ~]# ping 192.168.2.72
+
+在72上发现71的192.168.2.71上的iscsi设备
+72 ~]# iscsiadm --mode discoverydb --type sendtargets --portal 192.168.2.71 --discover
+192.168.2.71:3260,1 iqn.2018-08.cn.tedu:server1
+72 ~]# systemctl restart iscsi
+72 ~]# lsblk
+NAME          MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+sda             8:0    0   20G  0 disk 
+sdb             8:16   0   20G  0 disk
+(发现上两台iscsi设备)
+安装多路径文件
+72 ~]# yum -y install device-mapper-multipath-libs.i686 
+72 ~]# systemctl start multipathd.service
+72 ~]# systemctl status multipathd.service (服务没起)
+ConditionPathExists=/etc/multipath.conf was not met
+修改配置文件
+72 ~]# cp /usr/share/doc/device-mapper-multipath-0.4.9/multipath.conf  /etc/
+72 ~]# vim /etc/multipath.conf (在未尾添加)
+multipaths{
+multipath {
+ wwid  "360014055511b73acddf4e8db4c111dfb"
+ alias   san1
+}}
+:wq  
+72 ~]# systemctl start multipathd.service  (这次服务启用成功)
+72 ~]# multipath -ll
+360014055511b73acddf4e8db4c111dfb dm-2 LIO-ORG ,ipsan           
+size=20G features='0' hwhandler='0' wp=rw
+|-+- policy='service-time 0' prio=1 status=active
+| `- 2:0:0:0 sda 8:0  active ready running
+`-+- policy='service-time 0' prio=1 status=enabled
+  `- 3:0:0:0 sdb 8:16 active ready running
+
+获得设备wwid
+72 ~]# /usr/lib/udev/scsi_id  -g -u /dev/sda
+360014055511b73acddf4e8db4c111dfb
+
+multipath -ll  查看多路径(如果iscsi在操作前挂载,就会有冲突,多路径命令失效)
+multipath -F  删除多路径
+
+[root@mysql73 ~]# multipath -ll
+san1 (360014055511b73acddf4e8db4c111dfb) dm-2 LIO-ORG ,ipsan           
+size=20G features='0' hwhandler='0' wp=rw
+|-+- policy='service-time 0' prio=1 status=active  (一个加号表示一个路径的设备)
+| `- 2:0:0:0 sda 8:0  active ready running
+`-+- policy='service-time 0' prio=1 status=enabled
+  `- 3:0:0:0 sdb 8:16 active ready running
+块设备存放在/dev/mapper/下
+[root@mysql73 ~]# ls /dev/mapper/
+control    rhel-root  rhel-swap  san1 
+
++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+udv动态管理设备
+73 ~]# which multipath
+/usr/sbin/multipat
+73 ~]# rpm -qf /usr/sbin/multipath
+device-mapper-multipath-0.4.9-111.el7.x86_64
+73 ~]# rpm -ql device-mapper-multipath  查看文件列表
+
++++++++++++++++++++++++++++++++++++++++++++++++++++
+NAS --nfs(网络文件系统)
+192.168.4.71  /temp
+---192.168.4.0/24(rw,no_root_squash)  no_root_squash(限制)表客户端访问,依然是root身份
+---192.168.4.0/24(rw)
+
+添加自动挂载autofs
+73 ~]# yum -y install autofs.x86_64
+修改配置文件
+73 ~]# vim /etc/auto.master
+/misc  /etc/auto.misc
+73 ~]# vim /etc/auto.misc
+nfsdir    -fstype=nfs,rw
+73 ~]# systemctl start autofs
+73 ~]# ls /misc
+73 ~]# df
+触发挂载
+73 ~]# ls /misc/nfsdir 当访问触发点时
+73 ~]# df
+192.168.4.71:/temp    17811456 3292288 14519168   19% /misc/nfsdir(才有这条挂载信息)
+
+
+
+
+
+
+
+
+
+
+
+

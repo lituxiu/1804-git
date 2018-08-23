@@ -1,0 +1,92 @@
+udev
+multipath
+lvs+keepalived
+
+一、UDEV：动态管理设备文件的方法
+1、将虚拟机vdb硬盘的权限从默认的660改为664
+[root@localhost ~]# vim /etc/udev/rules.d/90-vdisk.rules
+ACTION=="add", KERNEL=="vdb", MODE="664", OWNER="root", GROUP="root"
+说明：匹配条件用==，赋值用=。
+ACTION=="add"意思是添加新设备。UDEV规则是在设备连接到系统或移除的时候生效。
+KERNEL=="vdb"意思是，没有人为干预，内核识别出来的设备名。
+MODE="664"表示赋值，权限改为664
+重启系统，测试规则是否生效。
+2、继续修改，对于vdb和它的分区，要创建快捷方式叫vdisk*
+[root@localhost ~]# vim /etc/udev/rules.d/91-vdisk2.rules
+ACTION=="add", KERNEL=="vdb[1-9]", SYMLINK+="vdisk%n"
+说明：SYMLINK表示创建软链接；+=表示额外创建；%n表示分区号
+[root@localhost ~]# parted /dev/vdb 
+(parted) mklabel gpt
+(parted) mkpart primary 1M 10%
+(parted) quit  
+[root@localhost ~]# ll /dev/vdb1 
+[root@localhost ~]# ll /dev/vdisk1 
+3、查看设备属性
+（1）查看设备文件在/sys/目录下的路径
+[root@localhost ~]# udevadm info --query=path --name=/dev/vdb1   输出如下：
+/devices/pci0000:00/0000:00:0c.0/virtio7/block/vdb/vdb1
+（2）根据输出的路径查看vdb1的所有属性
+[root@localhost ~]# udevadm info --query=all --attribute-walk --path=/devices/pci0000:00/0000:00:0c.0/virtio7/block/vdb/vdb1
+
+iSCSI：
+1、准备两台机器
+node1.tedu.cn  192.168.4.1/24  192.168.2.1/24
+node2.tedu.cn  192.168.4.2/24  1923.168.2.2/24
+配置IP地址：nmtui
+配置yum
+2、在node1.tedu.cn上安装服务端
+[root@node1 ~]# yum install -y targetcli
+3、配置服务端
+[root@node1 ~]# targetcli 
+/> /backstores/block create nsd1804 /dev/vdb1 
+/> /iscsi create iqn.2018-08.cn.tedu.nsd1803
+/> /iscsi/iqn.2018-08.cn.tedu.nsd1803/tpg1/luns create /backstores/block/nsd1804 
+/> /iscsi/iqn.2018-08.cn.tedu.nsd1803/tpg1/acls create iqn.2018-08.cn.tedu.node2
+/> saveconfig 
+/> exit
+4、配置客户端
+[root@node2 ~]# yum install -y iscsi-initiator-utils
+[root@node2 ~]# vim /etc/iscsi/initiatorname.iscsi
+InitiatorName=iqn.2018-08.cn.tedu.node2
+[root@node2 ~]# iscsiadm --mode discoverydb --type sendtargets --portal 192.168.4.1 --discover
+[root@node2 ~]# iscsiadm --mode discoverydb --type sendtargets --portal 192.168.2.1 --discover
+[root@node2 ~]# systemctl restart iscsi
+[root@node2 ~]# lsblk   # 出现了sda和sdb
+
+多路径：
+因为node2有两条路径可以到达node1的共享存储，这样出现了sda和sdb。node2使用sda，如果sda出现故障，它也不会自动的切换到sdb，为了使得node2可以灵活的使用共享存储，可以通过多路径的配置，将sda和sdb虚拟出来一块mpatha硬盘，这个mpatha底层使用sda和sdb。 mpath即多路径的缩写，a表示第一块磁盘。
+1、在node2上安装多路径软件包
+[root@node2 ~]# yum install -y device-mapper-multipath
+2、生成配置文件
+[root@node2 ~]# mpathconf --user_friendly_names n
+user_friendly_names n表示不使用软件自动分配的名称，由用户自己在配置文件中指定多路径磁盘的名称
+3、查看sda/sdb的wwid
+[root@node2 ~]# /lib/udev/scsi_id --whitelisted --device=/dev/sda  找到的wwid如下：
+360014057b968fc070284933aeca7b1dd
+4、在配置文件中为这个wwid起名为mpatha
+[root@node2 ~]# vim /etc/multipath.conf 追加以下内容：
+multipaths {
+   multipath {
+        wwid    360014057b968fc070284933aeca7b1dd
+        alias   mpatha
+   }
+}
+5、重启multipathd服务后，将在/dev/mapper/目录下生成mpatha，如果对它分区了，第一个分区叫mpatha1
+[root@node2 ~]# systemctl restart multipathd
+[root@node2 ~]# ls /dev/mapper/
+[root@node2 ~]# multipath -rr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

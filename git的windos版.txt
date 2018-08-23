@@ -1,0 +1,27 @@
+搭建git的windows
+ 3  git config --global user.name "lituxiu"
+    4  git config --global user.name "15900191392@163.com"
+git clone git://github.com/lituxiu/1804-git
+ssh-keygen -t rsa -C "15900191392@163.com"
+
+（注意）然后在我的电脑里打开 /c/Users/li/.ssh/id_rsa.pub复制到GIT官网添加密钥
+
+$ git commit -m "w2"
+On branch master
+nothing to commit, working tree clean
+
+如果版本有冲突就还原下 reset --hard origin/master
+
+git add .    这里的.代表当前目录下所有文件
+git commit -m "12"
+git remote add origin https://github.com/lituxiu/1804-git.git   提示“exists”
+git remote rm origin
+git remote add origin https://github.com/lituxiu/1804-git.git
+git push origin master   这个就上传修改的文档成功了
+
+
+传了个10多M的文件后报错error: RPC failed; curl 56 OpenSSL SSL_read: SSL_ERROR_SYSCALL, errno 10054
+解决git config http.postBuffer 524288000
+再执行git push origin master 稍微卡住感觉，继续等就传完了
+
+查看git log 查看所有的commit提交记录

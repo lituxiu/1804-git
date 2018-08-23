@@ -1,0 +1,109 @@
+李子岩  cluster
+hpc lb ha 2-3
+top500 cpu+gpu(ibm,nvidia)
+1PB = 1024T  10GBps
+04-11 linux python (14-16)
+vnc: 172.40.50.122  7000
+1 存储：iscsi udev multipath nfs
+2-3 集群：LB  HA 
+4-5 ceph 文件系统
+dell 华为 netapp
+DAS：直连
+NAS:网络附加存储
+nfs 
+cifs 
+tcp/ip ：传输的是数据包
+1Gb 10Gb
+1Mbps
+5MBps
+1B = 8b
+SAN：存储区域网络
+fc 8Gbps HBA 
+sas 6Gbps 
+scsi协议 传输的是块
+ethernet:  iscsi协议
+服务器扩展槽 pci-e
+==========
+查看所有虚拟机：
+virsh list --all
+
+启动虚拟机：
+virsh start rh7_node71
+
+部署iscsi
+1.target端，提供存储端
+192.168.4.71 -- san
+安装软件包：
+[root@san ~]#yum install targetcli
+添加一块硬盘，作为后台存储
+1)定义后台存储：
+/> cd backstores/block
+/backstores/block> create ipasn /dev/vdb
+2）创建iqn
+cd /iscsi
+/iscsi> create iqn.2018-08.cn.tedu:sharedisk
+3)授权用户访问
+/> cd /iscsi/iqn.2018-08.cn.tedu:sharedisk/tpg1/acls
+/iscsi/iqn.20...isk/tpg1/acls> create iqn.2018-08.cn.tedu:client1
+4)绑定存储
+/> cd iscsi/iqn.2018-08.cn.tedu:sharedisk/tpg1/luns
+/iscsi/iqn.20...isk/tpg1/luns> create /backstores/block/ipasn 
+5)保存配置：
+cd /
+saveconfig
+
+6)查看端口是否开启
+netstat -natpu|grep :3260
+7)开机自动运行target
+[root@san ~]# systemctl is-enabled target
+[root@san ~]# systemctl enable target
+
+2.initiator端，使用存储端，运行mysql服务
+192.168.4.72 -- mysql1
+192.168.4.73  -- mysql2
+1)查看软件是否按照：
+rpm -q iscsi-initiator-utils
+2）修改配在文件：
+vim /etc/iscsi/initiatorname.iscsi
+InitiatorName=iqn.2018-08.cn.tedu:client1
+
+3)发现存储：
+ iscsiadm --mode discoverydb --type sendtargets --portal 192.168.4.71 --discover
+
+4）重启iscsi
+systemctl restart iscsi
+lsblk
+
+5)使用存储
+[root@mysql1 iscsi]# mkfs.ext4 /dev/sda
+
+6)安装数据库
+[root@mysql1 iscsi]# yum install mariadb-server
+
+7)自动挂载：vim /etc/fstab
+blkid
+UUID="ab3c61fd-cf10-4bd0-a3fe-bbb9d8868e58"	/var/lib/mysql  ext4	defaults,_netdev 0 0	
+mount -a
+
+8)
+[root@mysql1 iscsi]# chown mysql.mysql /var/lib/mysql/
+
+9)启动mysql服务
+[root@mysql1 iscsi]# systemctl start mariadb
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
