@@ -1,0 +1,63 @@
+2018年8月18日
+ceph官方网站 docs.ceph.org.cn
+
+expect "yes/no" {send "yes\r"}DEVICE=eth0
+
+expect "#" {send "echo DEVICE=eth0 >/etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo ONBOOT=yes >>/etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo NM_CONTROLLED=no >>/etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo TYPE=Ethernet >>/etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo BOOTPROTO=dhcp >>/etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo IPADDR=192.168.1.$2 >>/etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo PREFIX=24 >>/etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo GATEWAY=192.168.1.254 >>/etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+
+node1 ~]# for i in {1..6}
+> do 
+> echo 192.168.1.$i node$i >> /etc/hosts
+> done
+
+node1 ~]#ssh-keygen
+node1 ~]# for i in {1..6}
+> do
+> ssh-copy-id node$i
+> done
+
+可在ssh命令后加你想在连接主机上执行命令
+ssh node2 id root
+ssh node2 useradd daxiuge
+
+配好yum和ntp时间同步
+++++++++++++++++++++++++++++++++
+node1-node3 monitor/osd  各三块10G的硬盘
+node4 mds服务顺,只有ceph fs需要
+node5 
+
+room9pc01 images]# qemu-img  create -f qcow2 1a.img 10G
+(创建1a,1b,1c硬盘,剩余两台也一样)
+room9pc01 qemu]# virsh edit node1修改配置文件改后关机再开(不是重启),
+<disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/1a.img'/>
+      <target dev='vdb' bus='virtio'/>
+    </disk>
+<disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/1b.img'/>
+      <target dev='vdc' bus='virtio'/>
+    </disk>
+<disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/1c.img'/>
+      <target dev='vdd' bus='virtio'/>
+    </disk>
+(node1到node3同样操作)
++++++++++++++++++++++++++
+yum makecache 生成网络yum缓存
+
+
+
+
+
+
+

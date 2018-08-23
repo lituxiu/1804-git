@@ -1,0 +1,64 @@
+在官网注册帐号和创一个新仓库，点public和initialize初始化
+帐号lituxiu 密码x159001
+
+教程https://blog.csdn.net/zengqujia1720/article/details/71123300
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+git服务端
+
+~]# yum -y install git
+daxiuge888 ~]# ssh-keygen -t rsa -C "15900191392@163.co"  本地创建ssh key
+SHA256:HETE3+hyDDa5g+182XRpZgMBZCiqLyPdIFpFwLlx5aY 15900191392@163.com
+
+在官网
+settings--Deploy keys
+    Title 随意起
+    Key 写ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDAZAGoPsm3f0Lepdo6ZyIEM38tbFYlAAg4HEyxBuPeypHQ/huxUkFw7FsGG1GhjaEuj8ztIFhxvjUt2KmcdjS2Z7dZeO8GO5p4qYmnhl757TK+TEtkoZu23eDa0JeR1SW7jEGG58kogfCnJHb+m6ViEKgI5rQxNn2NCF1j91Er7bUqXtKrwZbwmh7YYOXUWFWt7EpYguCcYufsEzToNIlEQQ1v/jg5L5IHFQX4/O990x3vV95fujZQ3yvTBZ1unmyPD11rlArVZMRBxc3H1K0aOUrjmhu7GfcLLJ5lfCCA4n6I389Y1EhJX6B7piayKzLx4OWqtX2s3OvBDTN6PlIn 15900191392@163.com  (这个是从cat /root/.ssh/id_rsa.pub)
+ 
+[root@daxiuge888 ~]# ssh -T git@github.com
+提示The authenticity of host 'github.com (13.229.188.59)' can't be established.
+RSA key fingerprint is SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8.
+RSA key fingerprint is MD5:16:27:ac:a5:76:28:2d:36:63:1b:56:4d:eb:df:a6:48.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'github.com,13.229.188.59' (RSA) to the list of known hosts.
+这话是成功了Hi lituxiu/1804-git! You've successfully authenticated, but GitHub does not provide shell access.
+要设置每一次commit都需记录这个信息的git的username和email
+[root@daxiuge888 ~]# git config --global user.name "lituxiu"
+[root@daxiuge888 ~]# git config --global user.email "15900191392@163.com"
+                                                                     
+cd到/root/桌面，输git clone https://github.com/lituxiu/1804-git/
+（最后是仓库名）
+
+把要上传文件复制在/root/桌面/1804-git里
+[root@daxiuge888 1804-git]# git add .
+[root@daxiuge888 1804-git]# git commit -m "first"
+[master b19b4a9] first
+    1 file changed, 188 insertions(+)
+    create mode 100644 "\346\236\266\346\236\2040823.txt"
+[root@daxiuge888 1804-git]# git push orign master
+   fatal: 'orign' does not appear to be a git repository
+   fatal: Could not read from remote repository.
+   Please make sure you have the correct access rights
+   and the repository exists
+(如果存在，则使用  git remote rm origin 后 再 使用 git remote add origin)
+[root@daxiuge888 1804-git]# git push
+Username for 'https://github.com': lituxiu
+Password for 'https://lituxiu@github.com': 
+Counting objects: 4, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 2.34 KiB | 0 bytes/s, done.
+Total 3 (delta 0), reused 0 (delta 0)
+To https://github.com/lituxiu/1804-git/
+   820ece9..b19b4a9  master -> master
+再刷新官网发现有新文档了
+git add .
+git commit -m "first" //注释
+git push orign master
+git push 接着输入
+
+
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+git客户端
+
+~]# git clone https://github.com/账户名称/仓库名称
+删除一个项目，点这个项目，setting 拉到低，delete 输项目名称，再点确定，删除成功

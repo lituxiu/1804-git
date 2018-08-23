@@ -1,0 +1,188 @@
+2018年8月23日
+知识回顾
+ssh 免密码登陆
+正则表达式
+json
+yml
+curl
+rsync     rsync -avz --delete 样本文件  被同步的文件
+
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+> /root/.ssh/known_hosts ???清空记录要ssh的记录，以上提示之前有过ip地址一样的连接记录
+
+/etc/ssh/sshd_config 这是ssh的配置文件
+
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+ansible  2013年推出一款it自动化，基于python开发
+批理操控服务器
+
+tar -xf ansible_soft.tar.xz 
+cd ansible_soft
+yum -y install *
+ansible --version
+yum install ansible-2.4.2.0-2.el7.noarch.rpm 
+
+修改配置文件
+ansible51 ~]# vim /etc/ansible/ansible.cfg 
+inventory      = /etc/ansible/hosts
+host_key_checking = False  在ssh连接时不用yes
+
+52-56配置同样的51本地/etc/hosts/
+yum -y install rsync
+ansible51 ~]# for i in {52..56}; do rsync -av /etc/hosts root@192.168.1.$i:/etc/hosts; done
+
+rsync -av /etc/hosts root@192.168.1.53:/etc/hosts 单台同步可以
+for i in {52..56}; do rsync -av /etc/hosts/ root@192.168.1.${i}:/etc/hosts/; done   循环同步会出错,为什么加${i},验证是五笔{}符号问题
+
+/etc/ansible/hosts 配置文件不支持通配符
+[web]
+web[52:53]
+[web:vars]
+ansible_ssh_user="root"  //如果一加ansible_ssh的这两步用户名和密码是不通的
+ansible_ssh_pass="1"
+
+[sql]
+sql[54:55]
+[sql:vars]
+ansible_ssh_user="root"
+ansible_ssh_pass="1"
+
+[other]
+ansible56 ansible_ssh_user="root" ansible_ssh_pass="1"
+:wq
+
+ansible51 ~]# ansible web -m  ping  //字体绿色代表连通
+ansible51 ~]# ansible web --list-host
+  hosts (2):
+    web52
+    web53
+
+/etc/ansible/hosts按应用分
+[web]
+web[52:53]
+[web:vars]
+
+[sql]
+sql[54:55]
+[sql:vars]
+
+[app:children]
+web
+sql
+[app:vars]
+ansible_ssh_user="root"  //如果一加ansible_ssh的这两步用户名和密码是不通的
+ansible_ssh_pass="1"
+
+[other]
+ansible56 ansible_ssh_user="root" ansible_ssh_pass="1"
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+查看ansible配置文件的有效信息
+ grep -v ^# /etc/ansible/ansible.cfg | grep -v ^$
+[defaults]
+inventory      = /etc/ansible/hosts
+roles_path    = /etc/ansible/roles:/usr/share/ansible/roles
+host_key_checking = False
+[inventory]
+[privilege_escalation]
+[paramiko_connection]
+[ssh_connection]
+[persistent_connection]
+[accelerate]
+[selinux]
+[colors]
+[diff]
+
+ansible51 ~]# grep -v ^# /etc/ansible/ansible.cfg | grep -v ^$ |sed -n '/inventory/p'
+inventory      = /etc/ansible/hosts
+
+复制多一份
+ansible51 ~]# egrep -v "^(#|$)" /etc/ansible/ansible.cfg
+[defaults]
+inventory      = /root/daxiuge
+roles_path    = /etc/ansible/roles:/usr/share/ansible/roles
+host_key_checking = False
+[inventory]
+[privilege_escalation]
+[paramiko_connection]
+[ssh_connection]
+[persistent_connection]
+[accelerate]
+[selinux]
+[colors]
+[diff]
+想这个过滤有效信息怎样用grep过滤出来
+
+新建文件在里创
+mkdir abc
+cd abc 
+ansible51 abc]# ls
+ansible.cfg  daxiuge8
+ansible51 abc]# cat ansible.cfg 
+[defaults]
+inventory      = daxiuge8
+ansible51 abc]# cat daxiuge8 
+[app1]
+web52
+sql54
+
+[app2]
+web53
+ansible51 abc]# ansible app1 -m ping  这个要在自定义文件夹里命令才成功成功
+web52 | SUCCESS => {
+    "changed": false, 
+    "ping": "pong"
+}
+sql54 | SUCCESS => {
+    "changed": false
+
+在除了自定义的文件夹里，执行的ansible命令是运行/etc/ansible里的
+ansible51 ~]# ansible all -m command -a 'uptime' -k  检测所有主机的cpu负载
+SSH password: 
+web52 | SUCCESS | rc=0 >>
+ 16:00:03 up  6:01,  3 users,  load average: 0.00, 0.01, 0.04
+
+sql55 | SUCCESS | rc=0 >>
+ 16:00:03 up  6:00,  3 users,  load average: 0.00, 0.01, 0.05
+
+web53 | SUCCESS | rc=0 >>
+ 16:00:03 up  5:55,  3 users,  load average: 0.00, 0.01, 0.02
+
+ansible56 | SUCCESS | rc=0 >>
+ 16:00:03 up  6:00,  3 users,  load average: 0.32, 0.08, 0.04
+
+sql54 | SUCCESS | rc=0 >>
+ 16:00:03 up  6:00,  3 users,  load average: 0.01, 0.05, 0.05
+          
+               模板
+ansible all -m authorized_key -a
+"user=root
+exclusive=true manage_dir
+
+++++++++++++++++++++
+批量配置管理（模块的运用）
+
+用command模块时注意不能用"<", ">", "|", "&"
+
+ansible t1 -m command -a 'chdir=/tmp touch f1'
+ansible t1 -m shell -a 'chdir=/tmp touch f2'
+ansible t1 -m raw -a 'chdir=/tmp touch f3'
+
+给web51 web52添加用户zhangsan3 密码设123456
+ansible51 ~]# ansible web -m shell -a 'passwd zhangsan3 '
+
+ssh -l web51 zhangsan3 
+
+给web组的所有主机添加lisi用户
+要求如果zhangsan用户存在就不添加lisi，否则添加lisi并修改密码为654321(在第一次修改密码 change )
+ansible 主机名 -m script -a '脚本名'
+
+验证
+ansible web1 -a 'id zhang3'
+ssh -l lisi web2  --->输入密码验证
+
+用ansible替代expect，expect匹配屏幕输出，不可靠
+
+
+
