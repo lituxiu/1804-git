@@ -1,0 +1,102 @@
+创建$1虚拟机
+qemu-img create -b  /var/lib/libvirt/images/node.qcow2 -f qcow2 /var/lib/libvirt/images/$1.img 10G
+ sed 's/node/node1/' /var/lib/libvirt/images/node.xml  >/etc/libvirt/qemu/$1.xml
+virsh define /etc/libvirt/qemu/$1.xml
+
+qemu-img create -b  /var/lib/libvirt/images/node.qcow2 -f qcow2 /var/lib/libvirt/images/node2.img 10G
+virsh define /etc/libvirt/qemu/node2
+virsh start $1
+
+#!/bin/bash
+#read -p "input you Vhostname :" $H    这里是语法错误
+#read -p "input Vhost sizeNB(G) :" $g
+#qemu-img create -b  /var/lib/libvirt/images/node.qcow2 -f qcow2 /var/lib/libvirt/images/${H}.img ${g}G
+#\cp -r /var/lib/libvirt/images/node.xml /etc/libvirt/qemu/${H}.xml
+#virsh define /etc/libvirt/qemu/${H}.xml
+#virsh start ${H}
+#read -p "input you Vhostname :" $H
+#read -p "input Vhost sizeNB(G) :" $g
+a=$1.img
+b=$2G
+qemu-img create -b  /var/lib/libvirt/images/node.qcow2 -f qcow2 /var/lib/libvirt/images/$a  $b
+c=$1.xml
+sed "s/node/$1/" /var/lib/libvirt/images/node.xml  >/etc/libvirt/qemu/$1.xml
+virsh define /etc/libvirt/qemu/$c
+virsh start $1
+
+
+wget   
+
+网卡
+DEVICE="eth0"
+ONBOOT="yes"
+NM_CONTROLLED="no"
+TYPE="Ethernet"
+BOOTPROTO="static"
+IPADDR="192.168.1.1"
+PREFIX="24"
+GATEWAY="192.168.1.254"
+
+head -5 /etc/yum.repos.d/centos7.repo | sed -rn '/^[a-z]/s/^.*/^#.*/'
+ sed -rn '/^[a-z]/s/^.*/^#.*/' /etc/yum.repos.d/centos7.repo
+ sed -rn '/^[a-z]/s/^(.).*/^#(.).*/p' /etc/yum.repos.d/centos7.repo
+正确在所有行加注释sed -rn 's/(.*)/#\1/p' /etc/yum.repos.d/centos7.repo
+head -5  /etc/yum.repos.d/centos7.repo |  sed -rn 's/(.*)/#\1/p'  
+head -5  /etc/yum.repos.d/centos7.repo |  sed -ri 's/(.*)/#\1/'  >/etc/yum.repos.d/centos7.repo
+
+]# ip a ls dev eth0 | awk -F"inet|/" '/inet /{print $2} '
+ 192.168.1.136
+
+
+expect "#"  {send " sed -i '/^#[A-Z]/s/#//' /etc/sysconfig/network-scripts/ifcfg-eth0 \r"}
+
+可行的
+expect "#" {send "echo hello world >> /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+
+
+
+这是错误的expect回复命令里send ""里是不能再加“”号，“eth0”错误，导致命令错误（但可心引用位置变量）
+expect "#" {send "echo DEVICE="eth0" > /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+DEVICE=eth0
+ONBOOT=yes
+NM_CONTROLLED=no
+TYPE=Ethernet
+BOOTPROTO=static
+IPADDR=192.168.1.8
+PREFIX=24
+GATEWAY=192.168.1.254
+
+无yes/no版修改虚拟IP（有的是ssh下加多一行expect "yes/no" {send "yes\r"}）
+]# cat expectguo2.sh 
+#!/bin/bash
+expect <<EOF
+spawn ssh $1 
+expect "password" {send "123456\r"}
+expect "#" {send "echo DEVICE=eth0 > /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo ONBOOT=yes >> /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo NM_CONTROLLED=no >> /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo TYPE=Ethernet >> /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo BOOTPROTO=static >> /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo IPADDR=192.168.1.$2 >> /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo PREFIX=24 >> /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "echo GATEWAY=192.168.1.254 >> /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expec
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
