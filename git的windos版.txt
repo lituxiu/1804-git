@@ -23,3 +23,5 @@ git push origin master   这个就上传修改的文档成功了
 传了个10多M的文件后报错error: RPC failed; curl 56 OpenSSL SSL_read: SSL_ERROR_SYSCALL, errno 10054
 解决git config http.postBuffer 524288000
 再执行git push origin master 稍微卡住感觉，继续等就传完了
+
+查看git log 查看所有的commit提交记录

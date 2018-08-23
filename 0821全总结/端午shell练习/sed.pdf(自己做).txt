@@ -1,0 +1,43 @@
+1.
+sed -n  '/San/p' data.txt（3行）
+
+2. 
+ sed -n  '/^J/p' data.txt（4行）
+
+3.
+ sed -n  '/700$/p' data.txt（2行）
+
+（注意）4.不包含834的行
+sed -n '/834/! p' data.txt
+
+5.
+ sed -n  '/834/p' data.txt（3行）错误
+ sed -n  '/:834-/p' data.txt (2行)才对 
+
+（难点）6.显示这样的行:它包含一个大写字后跟四个小写字母,逗号,空格,和一个
+大写字母 （难点）
+sed -n '/[A-Z][a-z]\{4\}, [A-Z]/p' data.txt
+
+(难点)7.显示以 K或k 开头的行 
+sed -n '/^[K|k]/ p' data.txt
+
+8.
+sed -n '/[0-9]\{6\}/p' data.txt
+
+(难点)9.显示包括Lincoln 或lincoln的行 
+sed -n '/[Ll]incoln/p' data.txt
+
+10.
+sed -n 's/Jon/Jonathan/p' data.txt
+
+11.
+sed -n '1,3d' data.txt
+
+12.
+sed  -n '5,10p' data.txt
+
+(注意)13.把三个星***添加到有 Fred的行 
+sed -n /^Fred/s/$/***/p data.txt
+
+14.
+sed -n '/^$/d' data.txt
