@@ -1,0 +1,16 @@
+搭建git的windows
+ 3  git config --global user.name "lituxiu"
+    4  git config --global user.name "15900191392@163.com"
+git clone git://github.com/lituxiu/1804-git
+ssh-keygen -t rsa -C "15900191392@163.com"
+
+（注意）然后在我的电脑里打开 /c/Users/li/.ssh/id_rsa.pub复制到GIT官网添加密钥
+
+如果版本有冲突就还原下 reset --hard origin/master
+
+git add .    这里的.代表当前目录下所有文件
+git commit -m "12"
+git remote add origin https://github.com/lituxiu/1804-git.git   提示“exists”
+git remote rm origin
+git remote add origin https://github.com/lituxiu/1804-git.git
+git push origin master   这个就上传修改的文档成功了
