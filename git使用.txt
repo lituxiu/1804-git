@@ -62,3 +62,10 @@ git客户端
 
 ~]# git clone https://github.com/账户名称/仓库名称
 删除一个项目，点这个项目，setting 拉到低，delete 输项目名称，再点确定，删除成功
+
+
+
+
+
+
+
