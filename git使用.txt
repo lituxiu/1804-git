@@ -56,6 +56,7 @@ git commit -m "first" //注释
 git push orign master
 git push 接着输入
 
+git log 查看commit的提交历史（按q退出）
 
 ＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
 git客户端
