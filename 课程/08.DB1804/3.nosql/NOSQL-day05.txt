@@ -1,0 +1,242 @@
+部署MongoDB副本集
+
+1 启用副本集
+]#vim  /usr/local/mongodb/etc/mongodb.conf
+...
+...
+replSet=rs1
+:wq
+]# mongod  -f  /usr/local/mongodb/etc/mongodb.conf --shutdown
+]# mongod  -f  /usr/local/mongodb/etc/mongodb.conf
+休息到 10:05
+2 创建副本集 
+mongo   --host   192.168.4.51  --port  27051
+>
+config = {
+
+_id:"rs1", 
+
+members:[
+    
+{_id:0,host:"192.168.4.51:27051"},
+    
+{_id:1,host:"192.168.4.52:27052"},
+    
+{_id:2,host:"192.168.4.53:27053"}
+]
+
+}
+> rs.initiate(config)
+> rs1:PRIMARY> rs.status()
+> rs1:PRIMARY> rs.isMaster()
+
+测试 同步功能
+]#mongo   --host   192.168.4.51  --port  27051
+> use  db101
+> db.c1.save({name:"bob",age:21})
+> db.c1.find()
+
+在52、53 主机上
+>db.getMongo().setSlaveOk()
+> use  db101
+> db.c1.save({name:"bob",age:21})
+> db.c1.find()
+
+休息到 11:15
+测试高可用：  停止当前主库 51 上的mongodb服务
+                      在2个副本主机上查看 副本集状态
+                      连接新选举出的主库存储数据 
+++++++++++++++++++++++++++++++++++
+
+管理文档（查看  插入  修改  删除）
+]# mongoimport  --host 192.168.4.52  --port  27052  -d userdb  -c 
+
+user --headerline --type=csv  /root/coluser.csv
+
+]# mongo  --host 192.168.4.52  --port  27052
+> use  userdb
+> show  tables
+> db.user.find()
+插入1 条文档  save()  或 insert()  
+db.c1.save({_id:"abc",name:"bob"})
+db.c1.find()
+db.c1.save({_id:"abc",name:"tom"})
+db.c1.find()
+db.c1.save({_id:"abcd",name:"tom"})
+db.c1.find()
+
+db.c1.insert({_id:"abcd",name:"jack"}) 放弃写入
+db.c1.insert({_id:"abcde",name:"jack"})  可以写入
+db.c1.find()
+
+插入 多条文档
+db.c1.insertMany(
+[
+{name:"bob",age:19,email:"plj@163.com"},
+{name:"lucy",sex:"girl"},
+{name:"bob",school:"tarena",class:"nsd1804"}
+]
+)
+
+
+查看  
+> db.user.find( )
+> db.user.findOne()
+
+>  db.user.find({条件},{显示字段列表})
+>  db.user.find({shell:"/bin/bash"})
+>  db.user.find({shell:"/bin/bash"},{_id:0})
+>  db.user.find({shell:"/bin/bash"},{_id:0,name:1,shell:1})
+>  db.user.find({uid:100},{_id:0,name:1})
+> db.user.find({uid:0},{_id:0,name:1})
+
+> db.user.find({条件},{显示字段列表}).limit(1)
+> db.user.find({条件},{显示字段列表}).limit(10)
+
+> db.c1.find().limit(2)
+
+> db.c1.find({条件},{显示字段列表}).skip(2)
+> db.c1.find().skip(2)
+
+> db.user.find({},{_id:0 ,name:1 ,uid:1}).sort({uid:-1})
+> db.user.find({},{_id:0 ,name:1 ,uid:1}).sort({uid:-1}).limit(2)
+
+
+save()  insert()  insertMany()  find()  findOne()
+limit()  skip()    sort()
+
+休息到15:00
+匹配条件 （查询  修改  删除）
+
+>db.user.find({name:"root"},{_id:0})
+
+>db.user.find({name:"root",uid:2},{_id:0})
+
+$in
+>db.user.find({    uid:{  $in:[1,6,9]   }})
+
+>db.user.find({name:{  $in:["root","mysql","apache"]}},{ _id:0 , 
+
+name:1 })
+
+$nin
+>db.user.find({  shell:{  $nin:["/bin/bash","/sbin/nologin"]}} , { _id:0 
+
+, name:1,shell:1 })
+
+$or
+>db.user.find({  $or: [ {name:"root"}  , {uid:1} ]  }    ,  { _id:0 
+
+,name:1,uid:1 })
+
+>db.user.find({name:/^....$/},{_id:0,name:1,uid:1})
+>db.user.find({name:/a/},{_id:0,name:1,uid:1})
+>db.user.find({name:/^a/},{_id:0,name:1,uid:1})
+
+数值比较
+$lt   $lte   $gt   $gte  $ne
+<     <=     >       >=    !=
+
+>db.user.find(  {  uid:{ $lte:10 } }, {_id:0 , name:1 , uid:1})
+
+>db.user.find({uid: { $gte:10,$lte:40} },{_id:0 , name:1 , uid:1})
+>db.user.find({uid: { $gte:10,$lte:40} },{_id:0 , name:1 , uid:1}).sort
+
+({uid:-1})
+
+> db.user.find({uid: { $gte:10,$lte:40} },{_id:0 , name:1 , uid:1}).sort
+
+({uid:-1}).limit(1)
+
+100  -  999
+> db.user.find({uid: { $gte:100,$lte:999} },{_id:0 ,uid:1, name:1 })
+
+> db.user.find({name:null},{_id:0,name:1})
+
+> db.user.save({name:null,password:"x"})
+> db.user.({name:null},{_id:0,name:1,uid:1,password:1})
+
+休息到 16:00
+
+修改  update({条件},{字段列表})
+> db.user.find({uid:{$lte:10}},{_id:0,shell:0,homedir:0})
+
+$set
+false,true
+> db.user.update({uid:{$lte:10}},{$set:{password:"A"}},false,true)
+> db.user.find({uid:{$lte:10}},{_id:0,shell:0,homedir:0})
+
+> db.user.update({uid:{$lte:10}},{$set:{password:"F"}})
+> db.user.find({uid:{$lte:10}},{_id:0,shell:0,homedir:0})
+
+
+$unset
+> db.user.update({name:"root"},{$unset:{password:"A"}})
+> db.user.find({name:"root"},{_id:0})
+
+$inc
+> db.user.find({shell:"/bin/bash"},{_id:0,uid:1,name:1})
+> db.user.update({shell:"/bin/bash"},{$inc:{uid:2}})
+
+> db.user.update({shell:"/bin/bash"},{$inc:{uid:-10}})
+> db.user.update({shell:"/bin/bash"},{$inc:{uid:3}} )
+> db.user.update({shell:"/bin/bash"},{$inc:{uid:3}},false,true )
+> db.user.find({shell:"/bin/bash"},{_id:0,name:1,uid:1})
+
+ $push/$addToSet
+
+> db.user.save({name:"lucy",like:["a","b","c","d","e"]})
+> db.user.find({name:"lucy"},{_id:0})
+
+$push
+> db.user.update({name:"lucy"},{ $push:{like:"f"} } ) 
+> db.user.update({name:"lucy"},{ $push:{like:"f"} } ) 
+> db.user.find({name:"lucy"},{_id:0})
+
+$addToSet 
+> db.user.update({name:"lucy"},{ $addToSet:{like:"f"} } ) 
+> db.user.update({name:"lucy"},{ $addToSet:{like:"F"} } ) 
+> db.user.find({name:"lucy"},{_id:0})
+
+$pop
+> db.user.update({name:"lucy"},{ $pop:{like:-1} } )删除头部1个元素
+> db.user.update({name:"lucy"},{ $pop:{like:1} } ) 删除尾部1个元素
+
+$pull
+> db.user.update({name:"lucy"},{ $pull:{like:"e"} } )
+> db.user.find({name:"lucy"},{_id:0})
+
+
+休息到17:10）
+
+删除
+db.user.remove({})
+db.user.remove({条件})
+db.user.remove({name:"mysql"})
+db.user.remove({uid:{$lte:10}})
+
+DBA1
+DBA2 
+NoSQL
+++++++++++++++++++++++++
+15天   DBA        10K   
+MYSQL  10
+5天:   
+建表   数据类型  索引  外键   主键    存储引擎  事务  特点ACID       
+管理表记录：  select  insert  update   delete
+                     单表  多表（嵌套  连接  左右连接）
+用户授权和权限撤销：  grant     revoke    mysql库
+数据备份与恢复：  mysqldump   binlog日志     percona(innobackupex)
+图形管理工具： phpmyadmin   naivcate
+
+DBA2_进阶
+主从同步
+数据读写分离  maxscale + 主从同步
+高可用集群     MHA+ 主从同步
+数据分片        mycat +  数据服务器
+MySQL优化  （网络连通性   软件本身   程序员   网络架构）
+MySQL视图  及  存储过程
+
+NoSQL软件服务
+Redis  集群   主从  数据的基本管理    持久化AOF  RDB
+MongoDB  副本集    数据的基本管理   备份与恢复 

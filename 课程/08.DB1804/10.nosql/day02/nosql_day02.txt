@@ -1,0 +1,175 @@
+NoSQL-day02
+配置Redis集群步骤：
+
+1 准备6台redis服务器 （ 使用默认配置运行即可）
+
+2 配置Redis集群
+2.1在每台redis服务器上做集群配置，然后重启redis服务
+
+2.2创建集群
+2.2.1 安装ruby脚本运行环境包
+2.2.2 把ruby脚本拷贝的系统命令路径下
+2.2.3 创建集群
+]# redis-trib.rb create  --replicas  1 192.168.4.51:6351 192.168.4.52:6352 
+
+192.168.4.53:6353 192.168.4.54:6354 192.168.4.55:6355 192.168.4.56:6356 
+
+
+[root@host51 ~]# redis-trib.rb create --replicas 1  192.168.4.51:6351 192.168.4.52:6352 
+
+192.168.4.53:6353 192.168.4.54:6354 192.168.4.55:6355 192.168.4.56:6356
+>>> Creating cluster
+>>> Performing hash slots allocation on 6 nodes...
+Using 3 masters:
+192.168.4.51:6351
+192.168.4.52:6352
+192.168.4.53:6353
+Adding replica 192.168.4.55:6355 to 192.168.4.51:6351
+Adding replica 192.168.4.56:6356 to 192.168.4.52:6352
+Adding replica 192.168.4.54:6354 to 192.168.4.53:6353
+M: 649d1f967a9facf84f8fbec26f141bc98dd1a9ea 192.168.4.51:6351
+   slots:0-5460 (5461 slots) master
+M: 4361720c3978aa02347076218580a103c60a6d7f 192.168.4.52:6352
+   slots:5461-10922 (5462 slots) master
+M: 3550af084c94889ae2d01103e6da5793fdd851fc 192.168.4.53:6353
+   slots:10923-16383 (5461 slots) master
+S: 42dee00433c0e12afabad9c2debea1b0c6c055f2 192.168.4.54:6354
+   replicates 3550af084c94889ae2d01103e6da5793fdd851fc
+S: 353278b8ed5ec1948a5bd5f3f08f28d73dbbe92c 192.168.4.55:6355
+   replicates 649d1f967a9facf84f8fbec26f141bc98dd1a9ea
+S: d934dc39421949f6794af4b9797c59a6695b2530 192.168.4.56:6356
+   replicates 4361720c3978aa02347076218580a103c60a6d7f
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join...
+>>> Performing Cluster Check (using node 192.168.4.51:6351)
+M: 649d1f967a9facf84f8fbec26f141bc98dd1a9ea 192.168.4.51:6351
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+S: 42dee00433c0e12afabad9c2debea1b0c6c055f2 192.168.4.54:6354
+   slots: (0 slots) slave
+   replicates 3550af084c94889ae2d01103e6da5793fdd851fc
+M: 4361720c3978aa02347076218580a103c60a6d7f 192.168.4.52:6352
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+S: 353278b8ed5ec1948a5bd5f3f08f28d73dbbe92c 192.168.4.55:6355
+   slots: (0 slots) slave
+   replicates 649d1f967a9facf84f8fbec26f141bc98dd1a9ea
+M: 3550af084c94889ae2d01103e6da5793fdd851fc 192.168.4.53:6353
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+S: d934dc39421949f6794af4b9797c59a6695b2530 192.168.4.56:6356
+   slots: (0 slots) slave
+   replicates 4361720c3978aa02347076218580a103c60a6d7f
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+[root@host51 ~]# 
+[root@host51 ~]# 
+
+[root@host51 ~]# cat /var/lib/redis/6379/nodes-6351.conf 
+42dee00433c0e12afabad9c2debea1b0c6c055f2 192.168.4.54:6354@16354 slave 
+
+3550af084c94889ae2d01103e6da5793fdd851fc 0 1530608275757 4 connected
+4361720c3978aa02347076218580a103c60a6d7f 192.168.4.52:6352@16352 master - 0 1530608275000 
+
+2 connected 5461-10922
+649d1f967a9facf84f8fbec26f141bc98dd1a9ea 192.168.4.51:6351@16351 myself,master - 0 
+
+1530608277000 1 connected 0-5460
+353278b8ed5ec1948a5bd5f3f08f28d73dbbe92c 192.168.4.55:6355@16355 slave 
+
+649d1f967a9facf84f8fbec26f141bc98dd1a9ea 0 1530608274753 5 connected
+3550af084c94889ae2d01103e6da5793fdd851fc 192.168.4.53:6353@16353 master - 0 1530608277000 
+
+3 connected 10923-16383
+d934dc39421949f6794af4b9797c59a6695b2530 192.168.4.56:6356@16356 slave 
+
+4361720c3978aa02347076218580a103c60a6d7f 0 1530608276559 6 connected
+vars currentEpoch 6 lastVoteEpoch 0
+[root@host51 ~]# 
+
+[root@host51 ~]# redis-cli -h 192.168.4.51 -p 6351
+>192.168.4.51:6351> CLUSTER nodes
+>192.168.4.51:6351> CLUSTER info
+
+
+休息到  17:45
+
+++++++++++++++++++++++++++++++++++++++++++++++
+[ERR] Node 192.168.4.52:6352 is not empty. Either the node already knows other nodes 
+
+(check with CLUSTER NODES) or contains some key in database 0.
+
+rm  -rf  /var/lib/redis/6379/*
+redis-cli  -h ip  -p port  shutdown
+/etc/init.d/redis_6379 start
+
+
+
+
+
+
+0-16383
+16384  hash slot 
+
+192.168.4.51
+0-5460 (5461 slots)
+
+192.168.4.52:
+slots:5461-10922 (5462 slots)
+
+192.168.4.53
+slots:10923-16383 (5461 slots) 
+
+
+
+redis-cli  -h192.168.4.51 -p 6351 
+> set  name  bob
+> set  age    19
+
+key/CRC16  值%16384 
+            7%16384 =  5723
+
+ 
+age/CRC16    9%16384 =  3740
+
+
+
+redis-cli  -h192.168.4.52 -p 6351
+>keys *
+> get  age
+
+
+age/CRC16  9%16384 =  3740
+
+
+
+
+++++++++++++++++++++++++++++
+首先准备6台redis服务器 （服务按照默认配置运行即可）
+
+
+在6台redis服务器上启用集群配置，并重启服务
+cluster_enable   yes
+
+
+创建集群 ruby脚本管理：创建 查看 删除 添加）
+
+创建集群时，保证数据库里没有数据。
+
+
+> flushall
+> shutdown
+>exit
+
+rm  -rf  /var/lib/redis/6379/*
+
+#redis-cli  -h ip   -p 端口  shutdown
+#/etc/init.d/redis_6379 start
+
+#redis-cli  -h ip   -p 端口
+> keys *

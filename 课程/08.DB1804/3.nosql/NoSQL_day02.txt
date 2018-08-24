@@ -1,0 +1,212 @@
+NoSQL_day02   部署Redis集群
+一、准备集群环境
+二、创建集群
+三、管理集群
+++++++++++++++++++++
+二、创建集群
+2.1 集群工作原理
+存储数据的工作原理：
+set 变量名   值
+set name  bob
+set age  109
+key  和 crc16算法  把计算后得到的数字  和 16384 做求模计算  
+                                                        7     %  16384                 5
+
+读取数据的工作原理：
+set 变量名
+get  name
+key  和 crc16算法  把计算后得到的数字  和 16384 做求模计算
+
+
+2.2 创建集群
+
+部署脚本运行环境
+    ]#  yum  -y  install  ruby   rubygems
+  727  rpm -ivh ruby-devel-2.0.0.648-30.el7.x86_64.rpm 
+  728  gem install redis-3.2.1.gem 
+
+创建ruby脚本  
+  731  cd redis-4.0.8/
+  733  cd src/
+  735  ls *.rb
+  737  echo  $PATH
+  739  mkdir /root/bin
+  740  cp  redis-trib.rb  /root/bin/
+
+创建集群
+redis-trib.rb create --replicas 1  192.168.4.51:6351   192.168.4.52:6352   192.168.4.53:6353  192.168.4.54:6354  192.168.4.55:6355  192.168.4.56:6356
+
+
+redis-trib.rb create --replicas 1  192.168.4.51:6351 192.168.4.52:6352   192.168.4.53:6353  192.168.4.54:6354 192.168.4.55:6355  192.168.4.56:6356
+
+休息到  10:15
+]# redis-trib.rb create --replicas 1  192.168.4.51:6351 192.168.4.52:6352   192.168.4.53:6353  192.168.4.54:6354 192.168.4.55:6355  192.168.4.56:6356
+>>> Creating cluster
+>>> Performing hash slots allocation on 6 nodes...
+Using 3 masters:
+192.168.4.51:6351
+192.168.4.52:6352
+192.168.4.53:6353
+Adding replica 192.168.4.55:6355 to 192.168.4.51:6351
+Adding replica 192.168.4.56:6356 to 192.168.4.52:6352
+Adding replica 192.168.4.54:6354 to 192.168.4.53:6353
+M: 2c4794730d932a81bcb68840d29e26fd11f08284 192.168.4.51:6351
+   slots:0-5460 (5461 slots) master
+M: 1ab7910802f76addcae10d5dd0e059759620ecb0 192.168.4.52:6352
+   slots:5461-10922 (5462 slots) master
+M: 3c84d32c1834259bb9a841181e34b5d4d3228ca5 192.168.4.53:6353
+   slots:10923-16383 (5461 slots) master
+S: f46897c9379b2d64fcf97538626b81cdf29873ab 192.168.4.54:6354
+   replicates 3c84d32c1834259bb9a841181e34b5d4d3228ca5
+S: 93d81d72305626761491a004a04d89e7fc50e58e 192.168.4.55:6355
+   replicates 2c4794730d932a81bcb68840d29e26fd11f08284
+S: 962a9f5ca2dd214dc43e40b0b7cfcfb8e5e51c85 192.168.4.56:6356
+   replicates 1ab7910802f76addcae10d5dd0e059759620ecb0
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join...
+>>> Performing Cluster Check (using node 192.168.4.51:6351)
+M: 2c4794730d932a81bcb68840d29e26fd11f08284 192.168.4.51:6351
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+S: 93d81d72305626761491a004a04d89e7fc50e58e 192.168.4.55:6355
+   slots: (0 slots) slave
+   replicates 2c4794730d932a81bcb68840d29e26fd11f08284
+S: 962a9f5ca2dd214dc43e40b0b7cfcfb8e5e51c85 192.168.4.56:6356
+   slots: (0 slots) slave
+   replicates 1ab7910802f76addcae10d5dd0e059759620ecb0
+S: f46897c9379b2d64fcf97538626b81cdf29873ab 192.168.4.54:6354
+   slots: (0 slots) slave
+   replicates 3c84d32c1834259bb9a841181e34b5d4d3228ca5
+M: 3c84d32c1834259bb9a841181e34b5d4d3228ca5 192.168.4.53:6353
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+M: 1ab7910802f76addcae10d5dd0e059759620ecb0 192.168.4.52:6352
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+[root@host51 src]# 
+
+在客户端连接集群存储数据（连接master库的ip地址）
+存储数据必须连接集群中的master主机 （连接任意一个master主机都可以）
+[root@host50 ~]# redis-cli -c -h 192.168.4.51 -p 6351
+> set  name  bob
+> set  age  109
+> keys *
+> get  name
+> get age
+
+测试集群的高可用
+]#redis-trib.rb   check  192.168.4.51:6351
+
+
+休息到11:36
+准备2台新的redis服务  要求如下: 运行redis服务并启用集群
+bind   192.168.4.57
+port   6357
+nodes-6357.conf
+
+bind   192.168.4.58
+port   6358
+nodes-6358.conf
+
+三、管理集群
+3.1  向集群里添加新的redis服务器
+添加master主机
+~]# redis-trib.rb add-node 192.168.4.57:6357  192.168.4.51:6351
+~]# redis-trib.rb  check 192.168.4.51:6351
+
+0-16383
+0-5460    5461-10922      10923-16383
+51              52                   54                           57
+				MASTER
+16384/4   4096
+~]# redis-trib.rb reshard 192.168.4.51:6351
+
+
+M: 7b473f069f6cbd5cb2ca45ff8b1cac1b11ce420e 192.168.4.57:6357
+   slots:0-1364,5461-6826,10923-12287 (4096 slots) master
+   0 additional replica(s)
+
+添加slave主机  192.168.4.58
+]#redis-trib.rb add-node  --slave  192.168.4.58:6358 192.168.4.51:6351
+
+]#redis-trib.rb  check   192.168.4.51:6351
+
+
+S: 4346ba4892675f3ab99480200c73bc7e73168da7 192.168.4.58:6358
+   slots: (0 slots) slave
+   replicates 7b473f069f6cbd5cb2ca45ff8b1cac1b11ce420e
+
+休息到15:10
+添加slave主机是 指定master .   192.168.4.50    -->  192.168.4.52 slave
+
+
+]# redis-trib.rb add-node --slave \
+--master-id  1ab7910802f76addcae10d5dd0e059759620ecb0 \  192.168.4.50:6350 192.168.4.51:6351
+
+]# redis-trib.rb  check   192.168.4.51:6351
+3.2 删除集群里的redis服务器
+删除slave主机   192.168.4.50    192.168.4.58
+
+]# redis-trib.rb del-node 192.168.4.51:6351 2239c74a6b36eb3bec81a5051a5bef462e0be997
+
+]# redis-trib.rb del-node 192.168.4.51:6351  4346ba4892675f3ab99480200c73bc7e73168da7
+
+]# redis-trib.rb check 192.168.4.51:6351 
+
+
+删除master主机   192.168.4.57
+]# redis-trib.rb reshard 192.168.4.51:6351
+]# redis-trib.rb check 192.168.4.51:6351 
+]# redis-trib.rb del-node 192.168.4.51:6351  57主机id
+
+休息到 16:25
+
+3.3 把修复的redis服务器再次添加到集群里
+3.3.1  把修复master的redis服务器再次添加到集群里
+master:
+]# /etc/init.d/redis_6379  start
+]# redis_cli   -h  192.168.4.57  -p  6357
+>  cluster  reset
+> exit
+
+51:
+]#redis-trib.rb  add-node   192.168.4.57:6357    192.168.4.51:6351
+]#redis-trib.rb  check 192.168.4.51:6351
+]#redis-trib.rb  reshard 192.168.4.51:6351
+
+3.3.1  把修复slave的redis服务器再次添加到集群里
+
+slave:
+]# /etc/init.d/redis_6379  start
+]# redis_cli   -h  192.168.4.58  -p  6358
+>  cluster  reset
+> exit
+
+51:
+]#redis-trib.rb  add-node  --slave  192.168.4.58:6358   192.168.4.51:6351
+]#redis-trib.rb  check 192.168.4.51:6351
+
+从现在到18:00  自由练习，
+练习完后把 主机  50  到 58  恢复为独立的redis服务器。
+步骤：
+删除hash槽
+把主机从集群中移除
+在集群配置文件中禁用集群配置
+重启redis服务
+
+
+
+
+
+
+
+
+
+

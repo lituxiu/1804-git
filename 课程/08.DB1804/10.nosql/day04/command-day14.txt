@@ -1,0 +1,132 @@
++++++++++++++++基本数据类型
+
+null：用于表示空值或者不存在的字段，{“x”:null}
+
+布尔型：布尔类型有两个值true和false，{“x”:true}
+
+数值：shell默认使用64为浮点型数值。{“x”：3.14}或{“x”：3}。对于整型值，可以使用NumberInt（4字节符号整数）或NumberLong（8字节符号整数），{“x”:NumberInt(“3”)}{“x”:NumberLong(“3”)}
+
+字符串：UTF-8字符串都可以表示为字符串类型的数据，{“x”：“呵呵”}
+
+日期：日期被存储为自新纪元依赖经过的毫秒数，不存储时区，{“x”:new Date()}
+
+正则表达式：查询时，使用正则表达式作为限定条件，语法与JavaScript的正则表达式相同，{“x”:/[abc]/}
+
+数组：数据列表或数据集可以表示为数组，{“x”： [“a“，“b”,”c”]}
+
+内嵌文档：文档可以嵌套其他文档，被嵌套的文档作为值来处理，{“x”:{“y”:3 }}
+
+对象Id：对象id是一个12字节的字符串，是文档的唯一标识，{“x”: objectId() }
+
+二进制数据：二进制数据是一个任意字节的字符串。它不能直接在shell中使用。如果要将非utf-字符保存到数据库中，二进制数据是唯一的方式。
+
+代码：查询和文档中可以包括任何JavaScript代码，{“x”:function(){/*…*/}}
+
++++++++++++++++++++++++++++++++++++++++++++++++++++
+数据备份
+[root@host64 bin]# mongodump  --host  192.168.4.64  --port  端口    //备份数据所有库到当前目录下的dump目录下
+
+
+[root@host64 bin]# mongodump  --host  192.168.4.64  --port  27017  -d  数据库名  -o   目标目录   //备份时指定库名的备份目录
+[root@host64 bin]# mongodump  --host  192.168.4.64  --port  27017  -d  bbs  -o   /root/bakdir
+
+
+[root@host64 bin]# ./bsondump  ./dump/bbs/t1.bson    //查看bson文件内容
+ 
+
+
+恢复数据
+[root@host64 ~]# /usr/local/mongodb/bin/mongorestore --host  192.168.4.64 --port  27017 -d  数据库名   备份目录名
+[root@host64 ~]# /usr/local/mongodb/bin/mongorestore --host  192.168.4.64  -d  bbs /root/bakdir/bbs/
+
+
+
++++++++++++++++++mongodb数据导出
+[root@host64 bin]# ./mongoexport --host 192.168.4.64 --port 27017  -d bbs -c  t1  -f name,age  --type=csv  > /root/bakdir/dc1.csv
+
+[root@host64 bin]# cat /root/bakdir/dc1.csv 
+name,age
+yaya,19
+yaya,
+yaya,
+jerry,17
+bob,19
+mack,29
+[root@host64 bin]#
+
+
+
+[root@host64 bin]# ./mongoexport --host 192.168.4.64 --port 27017  -d bbs -c  t1 -q '{ "name":"yaya"}'  -f name,age --type=csv  > /root/bakdir/dc2.csv  #导出为csv格式
+2018-05-16T13:52:02.852+0800	connected to: 192.168.4.64:27017
+2018-05-16T13:52:02.853+0800	exported 3 records
+[root@host64 bin]# 
+[root@host64 bin]# 
+[root@host64 bin]# cat /root/bakdir/dc2.csv 
+name,age
+yaya,19
+yaya,
+yaya,
+[root@host64 bin]# 
+
+[root@host61 ~]# mongoexport --host 192.168.4.61 --port 27077  -d bbsdb -c t1  --type=json  > /root/dc3.json   #导出为json格式
+
+146  mkdir  /pljbak
+  147  cd /pljbak/
+  148  mongodump  --host 192.168.4.61 --port 27077
+  149  ls
+  150  ls dump/
+  151  ls dump/bbsdb/
+  152  bsondump /pljbak/dump/bbsdb/t1.bson 
+
+]# mongodump  --host 192.168.4.61 --port 27077 -d bbsdb  -o /root/bbsdb
+
+
+]# mongodump  --host 192.168.4.61 --port 27077 -d bbsdb  -c  t1  -o  /root/bbsdb2
+
+
+恢复文档
+mongorestore --host 192.168.4.61 --port 27077 -d bbsdb /root/bbsdb2/bbsdb/
+
+
+数据导出
+--host
+--port
+-d
+-c
+-q
+-f
+-o
+
+# mongoexport  --host  192.168.4.61 --port 27077 -d bbsdb -c t1 -f name --type=csv  -o /root/plj1.csv
+cat  /root/plj1.csv
+
+
+# mongoexport  --host  192.168.4.61 --port 27077 -d bbsdb -c t1  -q  '{name:"bob"}' -f name,age --type=csv  -o 
+
+/root/plj2.csv
+
+
+
+
+# mongoexport  --host  192.168.4.61 --port 27077 -d bbsdb -c t1   --type=json  -o /root/plj3.json
+cat /root/plj3.json
+
+
+# mongoexport  --host  192.168.4.61 --port 27077 -d bbsdb -c t1   -f  name   --type=json  -o /root/plj4.json
+#cat /root/plj4.json
+
+
+数据导入
+[root@host61 pljbak]# mongoimport --host 192.168.4.61 --port  27077  -d bbsdb  -c t1  --type=json  /root/plj3.json 
+
+2018-05-16T16:50:59.251+0800	connected to: 192.168.4.61:27077
+2018-05-16T16:50:59.252+0800	imported 17 documents
+
+
+]# mongoimport --host 192.168.4.61 --port 27077   -d bbsdb    -c  t1   --type=csv  --headerline   /root/plj1.csv
+
+
+
+
+
+

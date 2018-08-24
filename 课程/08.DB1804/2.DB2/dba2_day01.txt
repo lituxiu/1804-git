@@ -1,0 +1,249 @@
+数据库管理-DBA1 课程内容总结
+基础：
+搭建mysql数据库服务器
+建库 建表 
+MySQL数据类型
+MySQL键   index  primary  key  foreign key
+mysql存储引擎   innoddb  myisam   事务  事物特点（ACID） 
+                         表级锁  行级锁    读锁  写锁
+管理表记录 insert   select   update  delete  匹配条件
+数据的导入  导出
+用户授权  权限撤销     安装图形管理工具
+数据备份与恢复  mysqldump  binlog日志    innobackupex  
+++++++++++++++++++++++++++++++++
+数据库管理-DBA2 课程内容如下：5天
+mysql主从同步
+MySQL高可用集群
+MySQL数据读写分离
+MySQL数据分片
+mysql多实例
+MySQL存储过程 
+MySQL视图
+MySQL优化
+
+day01:  MySQL主从同步
+准备学习环境 : 4台数据库服务器 50-53 
+                       host50    host51  host52   host53  
+                      管理员登陆后删除 除系统库 之外的所有库。
+
+配置MySQL主从同步：
+什么是主从同步？
+实现功能是什么（解决的是什么问题）？
+
+怎么配置？
+主master库配置如下：
+启用binlog日志文件
+]# vim /etc/my.cnf
+[mysqld]
+server_id=51
+log-bin=master51
+binlog_format="mixed"
+:wq
+]# systemctl   restart mysqld
+]#ls /var/lib/mysql/master51.*
+
+用户授权：给从库添加连接时使用的用户名
+mysql> grant  replication slave  on  *.*  to repluser@"192.168.4.52" 
+
+identified by "123qqq...A";
+
+查看正在使用的binlog日志信息。
+mysql>  show  master status;
+
+从slave库配置如下：
+指定server_id 
+[mysqld]
+server_id=52
+:wq
+]# systemctl  restart mysqld
+
+测试主库授权用户
+]# mysql -h192.168.4.51 -urepluser -p123qqq...A
+mysql> quit;
+
+管理员本机登录指定主库信息
+MySQL> show  slave  status;
+mysql> change master  to  
+
+master_host="192.168.4.51",master_user="repluser",master_passw
+
+ord="123qqq...A",master_log_file="master51.000001",master_log_p
+
+os=452;
+mysql> start  slave;
+查看配置
+MySQL> show  slave  status;
+Slave_IO_Running: Yes
+Slave_SQL_Running: Yes
+
+排错方法：
+MySQL> show  slave  status\G;
+Last_IO_Error:  IO 报错信息
+Last_SQL_Error: SQL报错信息
+
+
+
+
+MySQL> show  slave  status\G;
+Last_IO_Error: Got fatal error 1236 from master when reading data 
+
+from binary log: 'Could not find first log file name in binary log 
+
+index file'
+
+mysql>stop slave;
+mysql>change master to  master_log_file="master51.000001";
+mysql>start slave;
+MySQL> show  slave  status;
+
+
+
+Last_IO_Error: Got fatal error 1236 from master when reading data 
+
+from binary log: 'Client requested master to start replication from 
+
+position > file size'
+
+
+ Last_IO_Error: Fatal error: The slave I/O thread stops because 
+
+master and slave have equal MySQL server UUIDs; these UUIDs 
+
+must be different for replication to work.
+
+]# vim /var/lib/mysql/auto.cnf
+]# systemctl  restart   mysqld
+
+
+客户端测试主从同配置？
+在master主库服务器上管理员本机登录，添加客户端存储数据时，使用的连
+
+接用户。
+mysql> create database gamedb;
+mysql> create table  gamedb.t1(id int);
+mysql> grant  select,insert  on  gamedb.* to  webadmin@"%" 
+
+identified by "123qqq...A";
+客户端连接主库存储数据
+host50 ~]# mysql -h192.168.4.51 -uwebadmin -p123qqq...A
+mysql> show  grants;
+mysql>  insert  into  gamedb.t1  values(666);
+在从库管理员root本机登录，也能够看到客户端连接主库存储的数据。
+]#mysql  -uroot  -p123456
+mysql> select  * from gamedb.t1;
+休息到11:20
+
+主库
+master51.000001
+
+主从同步工作原理？
+cd  /var/lib/mysql/
+master.info
+relay-log.info
+host52-relay-bin.xxxxxx  中继日志文件
+
+start salve;
+IO线程:
+SQL线程:
+
+mysql> show   processlist;
+Binlog Dump
+
+配置MySQL主从同步结构：配置主库    配置从库
+主从同步工作原理：IO  SQL
+
+
+如何让从库暂时不同步主库的数据。
+在从库执行：  stop  slave;
+
+如何把从库还原成独立的数据库服务器？
+l]# rm  -rf master.info  relay-log.info 
+[root@host52 mysql]# rm -rf host52-relay-bin.*
+]# systemctl  restart  mysqld
+MySQL >  show  slave status\G;
+
+MySQL主从同步常用配置选项：
+
+slave_log_updates
++++++++++++++++++++++++++++++++++++
+三、MySQL主从同步模式：
+3.1 主从同步结构模式:
+一主一从
+一主多从
+主从从
+主主结构（互为主从）
+
+
+51：
+启用binlog日志文件
+
+mysql> drop user repluser@"192.168.4.52";
+mysql> grant  replication slave on  *.*
+    -> to repluser@"%"
+    -> identified by "123qqq...A";
+
+mysql>  show  master status;
+
+]# mysqldump -uroot -p123456 gamedb >  /root/gamedb.sql
+]# scp /root/gamedb.sql  root@192.168.4.53:/root/
+
+52/53
+mysql> create database  gamedb;
+]# mysql  -uroot  -p123456   gamedb  <    /root/gamedb.sql
+mysql>  select  *  from  gamedb.t1;
+
+host53 ~]#  mysql -h192.168.4.51  -urepluser -p123qqq...A
+host52 ~]#  mysql -h192.168.4.51  -urepluser -p123qqq...A
+
+vim /etc/my.cnf
+[mysqld]
+server_id=52
+:wq
+
+vim /etc/my.cnf
+[mysqld]
+server_id=53
+:wq
+]# systemctl  restart mysqld
+
+指定主库信息
+mysql> change  master  to  
+
+master_host="192.168.4.51",master_user="repluser",master_passw
+
+ord="123qqq...A",master_log_file="master51.000001",master_log_p
+
+os=5164;
+
+mysql> start  slave;
+mysql> show  slave status\G;
+
+休息到 15:35
+
+52:
+mysql> change  master  to  
+
+master_host="192.168.4.51",master_user="yaya",master_password
+
+="123qqq...A",master_log_file="db51.000001",master_log_pos=437
+
+;
+mysql>  start slave;
+mysql >  show  slave status\G;
+
+53：
+mysql> change  master  to
+    -> master_host="192.168.4.52",
+    -> master_user="yaya",
+    -> master_password="123qqq...A",
+    -> master_log_file="master52.000001",
+    -> master_log_pos=724;
+mysql>  start slave;
+mysql >  show  slave status\G;
+
+休息到 16:50 
+
+
+Last_SQL_Error: Error 'Table 'bbsdb.a' doesn't exist' on query. 
+
+Default database: ''. Query: 'insert into  bbsdb.a values(3111)'

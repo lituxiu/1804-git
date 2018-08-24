@@ -1,0 +1,216 @@
+# rpm  -e vsftpd   #卸载vsftpd程序
+# rpm  -q vsftpd   #查询软件包是否卸载成功 
+# rpm  -qa         #查询已经安装的所有rpm包
+补充：导入官方的签名 信息
+# rpm --import /dvd/RPM-GPG-KEY-redhat-release
+
+客户端配置文件：/etc/yum.repos.d/*.repo
+错误的配置文件会影响正确的配置文件
+[dvd]           #仓库命名
+ name=rhel7.0    #仓库描述信息
+ baseurl=http://classroom.example.com/content/rhel7.0/x86_64/dvd/        #指定服务端位置
+ enabled=1         #是否启用本文件
+ gpgcheck=0        #是否检测软件包的签名信息
+
+yum repolist    #列出仓库信息
+– wget  软件包的URL网址   -O   /目录路径/新文件名
+
+/etc/sysconfig/network-scripts/ifcfg-eth0
+# nmcli  connection   modify  'System eth0'      
+  ipv4.method   manual 
+  ipv4.addresses  '172.25.0.168/24     172.25.0.254' 
+  connection.autoconnect   yes
+# nmcli   connection   修改    '网卡名'
+  ipv4.方法    手工配置
+  ipv4.地址   ' IP地址/子网掩码    网关地址'
+    每次开机自动启用配置
+
+管道  |  作用：将前面命令的输出结果，作为后面命令的参数
+用户名：密码占位符：UID：基本组GID：用户描述信息:用户家目录：解释器
+– useradd [选项]... 用户名
+– -u 用户id、-d 家目录路径、-s 登录Shell解释器
+– -g 基本组、-G 附加组
+echo 123  |  passwd  --stdin  nsd01（非交互式设置密码）
+用户密码信息存放在 /etc/shadow 文件
+userdel  [-r] 用户名     #删除用户，并且删除用户的家目录
+
+组基本信息存放在 /etc/group 文件
+groupadd [-g 组ID] 组名
+groupdel 组名
+gpasswd -a harry stugrp  #用户加入组
+gpasswd -d harry stugrp  #将用户从组中删除
+
+gzip----》.gz       -z
+bzip2----》.bz2     -j
+xz----》.xz         -J
+• tar 集成备份工具
+ – -c:创建归档
+ – -x:释放归档
+ – -f:指定归档文件名称
+ – -z、-j、-J:调用 .gz、.bz2、.xz 格式的工具进行处理
+ – -t:显示归档中的文件清单
+ – -C（大写）:指定释放的位置
+（注意f后紧跟文件名）
+打包：tar 选项 压缩包名 被压缩归档的源文档
+解包: tar 选项 压缩包名 -C 释放的位置
+
+NTP时间同步
+服务：为客户机提供标准时间
+– NTP服务器为客户机提供标准时间
+– NTP客户机需要与NTP服务器保持沟通
+– 软件包:chrony
+– 配置文件:/etc/chrony.conf
+– 系统服务:chronyd 
+[root@server0 ~]# vim  /etc/chrony.conf
+   以#号开头的内容为注释内容
+  #server 0.rhel.pool.ntp.org  iburst
+  #server 1.rhel.pool.ntp.org  iburst
+  #server 2.rhel.pool.ntp.org  iburst
+  server classroom.example.com  iburst
+[root@server0 ~]# date
+[root@server0 ~]# date -s "2000-10-1  12:30:10"
+[root@server0 ~]# date
+[root@server0 ~]# systemctl  restart  chronyd
+[root@server0 ~]# date
+
+cron计划任务
+周期性任务
+• 用途:按照设置的时间间隔为用户反复执行某一项固定的系统任务
+• 软件包:cronie、crontabs
+• 系统服务:crond
+• 日志文件:/var/log/crond
+– 分   时   日   月    周     任务命令行(绝对路径)
+   30   8   *    *      *      每天早上8：30 
+   30   23   *    *     *      每天晚上23：30 
+   30   23   *    *     5      每周五晚上23：30 
+• 使用 crontab 命令
+– 编辑: crontab  -e  [-u 用户名]
+– 查看: crontab  -l  [-u 用户名]
+– 清除: crontab  -r  [-u 用户名]
+每分钟记录当前的时间 , 写入到/opt/time.txt
+[root@server0 ~]# date >> /opt/time.txt
+[root@server0 ~]# cat /opt/time.txt
+[root@server0 ~]# crontab -e              #书写周期性计划任务
+[root@server0 ~]# crontab -l              #查看周期性计划任务
+*/1  *  *  *  *    date  >>  /opt/time.txt
+
+grep 命令：在文本文件内容，过滤指定字符串
+-i: 忽略大小写
+-v: 取反查找
+显示/etc/login.defs有效信息(去除注释，去除空行)
+# grep -v  ^#  /etc/login.defs  |  grep  -v  ^$
+
+基本权限
+访问方式(权限)
+– 读取:允许查看内容-read :r
+– 写入:允许修改内容-write :w
+– 可执行:允许运行和切换-execute :x ['eksikju:t]
+
+• 权限适用对象(归属)
+  – 所有者:拥有此文件/目录的用户-user u
+  – 所属组:拥有此文件/目录的组-group    g
+  – 其他用户:除所有者、所属组以外的用户-other  o
+
+以 - 开头：文本文件
+以 d 开头：目录
+以 l 开头：快捷方式
+调整此目录的权限，使所有用户都不能cd进入此目录
+chmod u-x,g-x,o-x  /nsddir/
+为此目录及其下所有文档设置权限 rwxr-x---
+chmod -R  u=rwx,g=rx,o=---  /nsddir/
+
+设置文档归属
+• 使用 chown 命令
+– chown [-R] 属主 文档...
+– chown [-R] :属组 文档...
+– chown [-R] 属主:属组 文档...
+# chown zhangsan /nsd03   #修改所有者
+# chown :root /nsd03      #修改所属组
+# chown lisi:stugrp  /nsd03
+
+特殊权限(附加权限)
+（Set GID）
+• 附加在属组的 x 位上
+– 属组的权限标识会变为 s
+– 适用于目录,Set GID可以使目录下新增的文档自动设
+置与父目录相同的属组
+– 让新增子文档继承父目录的属组
+# chmod g+s /nsd08    #设置Set GID权限
+（Set UID）
+• 附加在所有者的 x 位上
+– 所有者的权限标识会变为 s
+– 适用于可执行文件,Set UID可以让使用者具有文件属主的身份及部分权限
+– 传递所有者身份
+[root@server0 ~]# cp /usr/bin/mkdir  /usr/bin/xixidir
+[root@server0 ~]# chmod u+s /usr/bin/xixidir
+[root@server0 ~]# su - student
+[student@server0 ~]$ /usr/bin/mkdir test01
+[student@server0 ~]$ /usr/bin/xixidir test02
+（Sticky Bit）
+• 附加在其他人的 x 位上
+– 其他人的权限标识会变为 t
+– 适用于开放 w 权限的目录,可以阻止用户滥用 w 写入
+权限(禁止操作别人的文档)
+[root@server0 ~]# useradd harry
+[root@server0 ~]# useradd natasha
+[root@server0 ~]# mkdir /public
+[root@server0 ~]# chmod ugo=rwx /public
+[root@server0 ~]# chmod o+t /public
+
+acl访问控制列表
+acl策略的作用
+• 文档归属的局限性
+ – 任何人只属于三种角色:属主、属组、其他人
+ – 无法实现更精细的控制
+• acl访问策略
+ – 能够对个别用户、个别组设置独立的权限
+ – 大多数挂载的EXT3/4、XFS文件系统默认
+使用 getfacl、setfacl 命令
+– getfacl 文档...
+– setfacl -m u:用户名:权限类别 文档... setfacl -m u:gelin01:rwx /nsd1
+– setfacl -m g:组名:权限类别 文档...
+– setfacl -x u:用户名 文档...  #删除指定的ACL setfacl -x u:gelin01 /nsd10
+– setfacl -b 文档...  #删除所有ACL setfacl -b /nsd10
+-R: 递归设置 
+
+使用LDAP认证,网络用户
+     网络用户:LDAP服务器存储
+     本地用户:/etc/passwd
+什么是LDAP?
+• 轻量级目录访问协议
+• 为一组客户机集中提供可登录的用户账号
+– 网络用户:用户名、密码信息存储在 LDAP 服务端
+– 这些客户机都加入同一个 LDAP 域
+
+LDAP和NFS间的联系？？
+
+– find查找文件
+– 常用条件表示:
+-type 类型(f文件、d目录、l快捷方式)
+-name "文档名称"
+-size +|-文件大小(k、M、G)
+-user 用户名
+# find /boot/ -type d #查找是目录
+# find /boot/ -type f #查找是文件
+# find /boot/ -type l #查找是快捷方式
+# ls /etc/*.conf
+# find /root/ -name "nsd*" -a -type f 
+# find /boot/ -size +10M
+# find /boot/ -size +300k
+• 使用find命令的 -exec 操作
+– find .. .. -exec 处理命令  {}  \;
+– 优势:以 {} 代替每一个结果,逐个处理,遇 \; 结束
+# find /boot/ -size +300k -exec cp -r {} /opt \;
+# find / -user student -type f -exec cp {} /root/findfiles/ \;
+• 限制目录查找的深度(最大层数)
+– -maxdepth
+# find /etc/ -maxdepth 1 -name "*.conf"
+# find /etc/ -maxdepth 2 -name "*.conf"
+# find /var/log -mtime +90 #过去时间90天之前
+# find /var/log -mtime -90 #过去时间90天之内
+
+
+
+
+
+

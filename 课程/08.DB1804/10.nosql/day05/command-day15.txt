@@ -1,0 +1,133 @@
+把系统用户信息导入到mongodb服务器的mdb库下的user集合里
+
+> db.user.findOne()
+> db.user.find() 显示所有行，默认一次只输出20行  输入it  显示后续的行
+
+
+> db.user.find（{条件},{定义显示的字段}） #指定查询条件并指定显示的字段
+
+
+字段显示限制
+> db.user.find({},{_id:0})
+
+> db.user.find({},{_id:0,name:1,shell:1})
+
+
+简单条件
+> db.user.find({shell:"/bin/bash"})
+> db.user.find({shell:"/bin/bash",name:"root"})
+> db.user.find({shell:"/bin/bash",name:"zhangsan"})
+
+行数显示限制
+> db.user.find({},{_id:0,name:1,uid:1,shell:1}).limit(3)
+
+> db.user.find({shell:"/sbin/nologin"},{_id:0,name:1,uid:1,shell:1})
+
+> db.user.find({shell:"/sbin/nologin"},{_id:0,name:1,uid:1,shell:1}).skip(2)
+
+> db.user.find({shell:"/sbin/nologin"},{_id:0,name:1,uid:1,shell:1}).skip(2).limit(1)
+
+> db.user.find({shell:"/sbin/nologin"},{_id:0,name:1,uid:1,shell:1}).skip(2).limit(2)
+> db.user.find({shell:"/sbin/nologin"},{_id:0,name:1,uid:1,shell:1}).sort({uid:1})
+> db.user.find({shell:"/sbin/nologin"},{_id:0,name:1,uid:1,shell:1}).sort({uid:-1})
+
+ObjectId对象类型 使用12字节的存储空间 每个字节2位十六进制数字 共计24位字符串
+0 1 2 3   4 5 6      7  8      9  10  11 
+时间戳     机器       PID      计数器  
+
+
+--------条件判断
+$in                
+$nin
+db.user.find({ uid:{$in:[1,6,9]} },{_id:1,name:1,uid:1})
+
+db.user.find({ uid:{$nin:[1,6,9]} } , { _id:0 })
+
+
+$or
+> db.user.find({ $or: [ {name:"root"},{uid:1}  ] } )
+
+正则匹配
+> db.user.find({name:/^a/})
+
+数值比较
+$lt  $lte   $gt  $gte  $ne   
+<    <=     >     >=   !=    
+
+> db.user.find( { uid: { $gte:10,$lte:40} } , {_id:0,name:1,uid:1})
+
+匹配null ,也可以匹配没有的字段
+> db.user.save({name:null,uid:null})
+
+> db.user.find({name:null})
+{ "_id" : ObjectId("5afd0ddbd42772e7e458fc75"), "name" : null, "uid" : null }
+
+rs1:PRIMARY> db.user.find({shell:null}) 表示此条文档没有shell字段
+{ "_id" : ObjectId("5a fd0ddbd42772e7e458fc75"), "name" : null, "uid" : null }
+
+
+
+
+
+------------插入记录
+save()  与insert() 的区别
+save()  _id字段值 已存在时 修改文档字段值
+insert()  _id字段值 已存在时放弃插入
+
+
+插入多行文档
+> db.user.insertMany( [ {name:"xiaojiu"},{name:"laoshi"}   ] )
+> db.user.insertMany( [ {name:"xiaojiu2"},{name:"laoshi3",age:18}   ] )
+
+
+> db.user.find( {$or:[{name:"xiaojiu"},{name:"laoshi"}] } , {name:1}  )
+
+
+++++++++++++++修改update()
+>db.user.update({条件},{修改的字段})
+
+> db.user.find({uid:{$lte:10}},{_id:0 , uid:1 , password:1 })
+
+> db.user.find({uid:{$lte:10}},{_id:0  })
+
+> db.user.update({name:"bin"},{$unset:{comment:1}})
+
+> db.user.find({name:"bin"},{_id:0})
+
+> db.user.update({name:"bin"},{$set:{password:"abc12123"}})
+
+> db.user.find({name:"bin"},{})
+
+
+>db.user.find({name:/^a/},{_id:0,name:1,password:1}) 默认只修改与条件匹配的第1行
+
+
+> db.user.update({name:/^a/},{$set:{password:"XXX"} },false,true ) #修改与条件匹配的多行
+
+> db.user.insert({name:"bob",likes:["a","b","c","d","e","f"]})
+
+> db.user.update({name:"bob"},{$pop:{likes:1}}) 删除数组末尾一个元素
+
+> db.user.update({name:"bob"},{$pull:{likes:"b"}}) 删除数组中指定元素
+
+> db.user.update({name:"bob"},{$pop:{likes:-1}}) 删除数组头部一个元素
+
+> db.user.update({name:"bob"},{$push:{likes:"F"}}) 向数组中添加新元素
+
+> db.user.update({name:"bob"},{$addToSet:{likes:"F"}}) #存在时不添加
+
+
+> db.user.update({name:"bin"},{$inc:{uid:2}}) 设置字段值自加 
+> db.user.update({name:"bin"},{$inc:{uid:-1}}) 负数时是自减 
+++++++++++++++++++++++++
+remove() 与drop()的区别
+remove()删除文档时不删除索引
+drop() 删除集合的同时删除索引
+
+> db.t1.remove({})
+> db.user.remove({name:/^a/})
+> db.user.drop()
+
+
+
+

@@ -1,0 +1,69 @@
+
+
+systemctl控制
+
+– 负责掌控整个Linux的运行/服务资源组合
+
+– 服务目录:/lib/systemd/system/
+
+服务管理：
+  systemctl restart  httpd    #重起服务
+  systemctl status  httpd     #查看服务状态
+
+  systemctl start  httpd    #服务启动
+  systemctl stop   httpd    #服务停止
+
+  systemctl enable  httpd      #设置服务开机自起 
+  systemctl is-enabled httpd   #查看服务是否是开机自起 
+  systemctl disable httpd      #设置服务禁止开机自起   
+
+
+管理运行级别：
+
+  RHEL6：200个服务
+
+		0：关机        0个服务
+		1：单用户模式（修复模式 破解密码模式）  50个服务
+		2：字符界面（不支持网络）   80个服务
+		3：字符界面（支持网络）  120个服务
+		4：未定义
+		5：图形界面       180个服务
+		6：重起      0个服务
+
+   切换级别 ： init 0
+
+RHEL7:
+
+  multi-user.target :字符模式/文本模式
+  graphical.target :图形模式
+
+临时切换
+[root@svr7 /]# systemctl isolate multi-user.target
+[root@svr7 /]# systemctl isolate graphical.target
+
+永久改变开机进入的模式
+[root@svr7 /]# systemctl get-default   #查看默认进入的模式
+
+[root@svr7 /]# systemctl set-default graphical.target
+
+[root@svr7 /]# reboot
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,295 @@
+准备 2 台虚拟机,配置如下:
+vm1(eth1:192.168.2.20),vm2(eth1:192.168.2.30)
+
+
+vm1 创建账户 netadm,softadm,useradm,procadm;为所有的账户设置初始密码 123456
+[root@vm1 ~]# useradd netadm
+[root@vm1 ~]# useradd softadm
+[root@vm1 ~]# useradd uesradm
+[root@vm1 ~]# useradd procadm
+[root@vm1 ~]# echo 123456 | passwd --stdin netadm
+[root@vm1 ~]# echo 123456 | passwd --stdin softadm
+[root@vm1 ~]# echo 123456 | passwd --stdin uesradm
+[root@vm1 ~]# echo 123456 | passwd --stdin procadm
+
+
+vm1 创建账户 devel1,devel2,devel3,test1,test2,test3;为所有账户设置初始密码 passwd
+[root@vm1 ~]# useradd devel1 ;echo passwd | passwd --stdin devel1
+
+
+vm1 设置 test3 的账户过期时间为 2019-12-12.
+[root@vm1 ~]# chage -l test3
+帐户过期时间						：从不
+[root@vm1 ~]# chage -E 2019-12-12 test3
+[root@vm1 ~]# chage -l test3
+帐户过期时间						：12月 12, 2019
+
+
+vm1 使用 passwd 命令临时锁定 devel3 账户
+[root@vm1 ~]# passwd -l devel3
+锁定用户 devel3 的密码 。
+passwd: 操作成功
+
+
+vm1 为/etc/resolv.conf 文件添加 i 锁定属性,为/etc/hosts 添加 a 仅可追加属性
+[root@vm1 ~]# lsattr /etc/resolv.conf
+---------------- /etc/resolv.conf
+[root@vm1 ~]# chattr +i /etc/resolv.conf
+[root@vm1 ~]# lsattr /etc/resolv.conf
+----i----------- /etc/resolv.conf
+[root@vm1 ~]# lsattr /etc/hosts
+---------------- /etc/hosts
+[root@vm1 ~]# chattr +a /etc/hosts
+[root@vm1 ~]# lsattr /etc/hosts
+-----a---------- /etc/hosts
+
+
+vm1 用 test1 用户登陆系统,使用 su 命令切换为 test2 账户在 tmp 下创建一个文件(非
+交互模式)
+[root@vm1 ~]# su - test2 -c "mkdir /tmp/daxiuge"
+[root@vm1 ~]# ls /tmp
+daxiuge
+systemd-private-6e39eaf2a1884b03954641c436f04c30-chronyd.service-mIguPH
+systemd-private-6e39eaf2a1884b03954641c436f04c30-cups.service-jV1DTf
+
+vm1 使用 root 登陆系统,设置 sudo 权限,要求如下:
+vm1 让 netadm 能以 root 的身份执行网络管理的任务(参考 sudo 命令别名)
+修改
+#Networking
+ Cmnd_Alias NETWORKING = /sbin/route, /sbin/ifconfig, /bin/ping, /sbin/dhclient, /usr/bin/net, /sbin/iptables, /usr/bin/rfcomm, /usr/bin/wvdial, /sbin/iwconfig, /sbin/mii-tool
+netadm  ALL=(ALL)    NETWORKING
+
+vm1 让 softadm 能以 root 的身份执行软件管理的任务
+## Services
+ Cmnd_Alias SERVICES = /sbin/service, /sbin/chkconfig, /usr/bin/systemctl start, /usr/bin/systemctl stop, /usr/bin/systemctl reload, /usr/bin/systemctl restart, /usr/bin/systemctl status, /usr/bin/systemctl enable, /usr/bin/systemctl disable
+softadm  ALL=(ALL)    SERVICES
+
+vm1 让 useradm 能以 root 的身份执行账户管理的任务(不能修改 root 密码)
+    useradm  ALL=(ALL)    /usr/bin/passwd (在/etc/sudoers)
+
+vm1 让 procadm 能以 root 的身份执行进程管理任务(如杀死进程)
+## Processes
+ Cmnd_Alias PROCESSES = /bin/nice, /bin/kill, /usr/bin/kill, /usr/bin/killall
+procadm  ALL=(ALL)    PROCESSES
+
+
+vm1 设置虚拟机 ssh 配置,进入 root 远程本机,设置 sshd 黑名单,禁止 test3 从任何
+主机远程本机
+在文件/etc/ssh/sshd_config追加"DenyUsers test3"
+
+vm1 真实主机创建一对 ssh 密钥,让真实机可以无密码远程虚拟机,观察密钥在虚拟机
+中的位置
+[root@room9pc01 ~]# ssh-copy-id 192.168.2.20
+[root@vm1 ~]# ls .ssh/
+authorized_keys  id_rsa  id_rsa.pub  known_hosts
+
+在 vm1 主机使用 gpg 软件对/etc/rc.d/rc.local 文件进行对称加密,并将加密文件传给
+vm2
+[root@vm1 ~]# gpg -c /etc/rc.d/rc.local
+[root@vm1 ~]# ls /etc/rc.d/
+init.d  rc1.d  rc3.d  rc5.d  rc.local
+rc0.d   rc2.d  rc4.d  rc6.d  rc.local.gpg
+[root@vm1 ~]# scp /etc/rc.d/rc.local.gpg  192.168.2.30:/root
+rc.local.gpg                      100%  356   650.2KB/s   00:00 
+
+在 vm2 对主机 vm1 传来的加密文件进行解密
+[root@vm2 ~]# gpg -d rc.local.gpg>locat.txt
+
+在 vm1 上使用 gpg 创建非对称密钥对,并将公钥到处传给 vm2
+[root@vm1 ~]# gpg --gen-key
+[root@vm1 ~]# gpg --list-keys
+/root/.gnupg/pubring.gpg
+------------------------
+pub   2048R/33CF16A7 2018-07-05
+uid                  lituxiu
+sub   2048R/DF71D6A0 2018-07-05
+[root@vm1 ~]# gpg -a --export lituxiu > daxiuge.pub
+[root@vm1 ~]# scp daxiuge.pub 192.168.2.30:/root
+daxiuge.pub                       100% 1687     3.2MB/s   00:00 
+
+在 vm2 主机将 vm1 传过来的公钥导入,并使用公钥对/etc/sysctl.conf 文件加密,并将
+加密文件传给 vm1,在 vm1 主机使用自己的私钥解密该文件
+[root@vm2 ~]# gpg --import daxiuge.pub 
+gpg: /root/.gnupg/trustdb.gpg：建立了信任度数据库
+gpg: 密钥 33CF16A7：公钥“lituxiu”已导入
+gpg: 合计被处理的数量：1
+gpg:           已导入：1  (RSA: 1)
+[root@vm2 ~]# echo "大秀哥888">1.txt
+[root@vm2 ~]# gpg -e -r lituxiu 1.txt
+[root@vm2 ~]# ls
+1.txt            daxiuge.pub           rc.local.gpg  视频  下载
+1.txt.gpg        initial-setup-ks.cfg  公共          图片  音乐
+[root@vm2 ~]# scp 1.txt.gpg 192.168.2.20:/root
+Password: 
+1.txt.gpg                         100%  351    31.2KB/s   00:00
+[root@vm1 ~]# gpg -d 1.txt.gpg >1.txt
+gpg: 由 2048 位的 RSA 密钥加密，钥匙号为 DF71D6A0、生成于 2018-07-05
+      “lituxiu”
+[root@vm1 ~]# cat 1.txt
+大秀哥888
+
+在 vm1 主机使用私钥给文件/etc/sysctl.conf 文件签名,在 vm2 主机验证签名
+使用 aide 软件对/bin/和/sbin/目录进行入侵检测
+[root@vm1 ~]# gpg -b /etc/sysctl.conf
+[root@vm2 ~]# yum -y install aide
+[root@vm2 ~]# vim /etc/aide.conf 
+#/boot/   CONTENT_EX
+/bin/    CONTENT_EX
+/sbin/   CONTENT_EX
+#/lib/    CONTENT_EX
+#/lib64/  CONTENT_EX
+#/opt/    CONTENT
+[root@vm2 ~]# aide --init
+AIDE, version 0.15.1
+### AIDE database at /var/lib/aide/aide.db.new.gz initialized.
+[root@vm1 ~]# scp /etc/sysctl* 192.168.2.30:/root
+[root@vm2 ~]# gpg --verify sysctl.conf.sig sysctl.conf(签名再到原文件，顺序不能错)
+gpg: 于 2018年07月05日 星期四 14时49分18秒 CST 创建的签名，使用 RSA，钥匙号 33CF16A7
+gpg: 完好的签名，来自于“lituxiu”
+gpg: 警告：这把密钥未经受信任的签名认证！
+gpg:       没有证据表明这个签名属于它所声称的持有者。
+主钥指纹： 0030 C18B FC5C 647E 7944  8AA5 A544 06E4 33CF 16A7
+[root@vm2 ~]# aide --check
+AIDE 0.15.1 found differences between database and filesystem!!
+Start timestamp: 2018-07-05 14:53:08
+
+Summary:
+  Total number of files:	121701
+  Added files:			1
+  Removed files:		0
+  Changed files:		0
+---------------------------------------------------
+Added files:
+---------------------------------------------------
+added: /root/sysctl.conf.sig
+
+在 vm2 上安装 nginx,vsftpd,mariadb,mariadb-server,并启动所有对应的服务
+在 vm1 上使用 nmap 扫描 vm2 主机的所有 TCP 服务
+[root@vm1 ~]# yum -y install nmap
+[root@vm1 ~]# nmap 192.168.2.30
+Starting Nmap 6.40 ( http://nmap.org ) at 2018-07-05 15:08 CST
+mass_dns: warning: Unable to determine any DNS servers. Reverse DNS is disabled. Try using --system-dns or specify valid servers with --dns-servers
+Nmap scan report for 192.168.2.30
+Host is up (0.000020s latency).
+Not shown: 995 closed ports
+PORT     STATE SERVICE
+21/tcp   open  ftp
+22/tcp   open  ssh
+80/tcp   open  http
+111/tcp  open  rpcbind
+3306/tcp open  mysql
+MAC Address: 52:54:00:5A:B7:5B (QEMU Virtual NIC)
+Nmap done: 1 IP address (1 host up) scanned in 0.04 seconds
+
+在 vm2 上配置 nginx 用户认证,并使用 tcpdump 抓取 80 端口相关的数据包,注意默
+认抓取的是第一个网卡的数据,抓取其他网卡可以使用-i 选项
+[root@vm1 ~]# tcpdump -i eth1 -A host 192.168.2.30 and tcp port 80
+
+在 vm1 上使用 firefox 访问 vm2 的页面,输入账户与密码,到 vm2 观察数据包
+[root@vm1 ~]# tcpdump -w  daxiuge.cap -i eth1 -A host 192.168.2.30 and tcp port 80
+[root@vm1 ~]# cat daxiuge.cap 
+Authorization: Basic ZGF4aXVnZTox
+[root@vm1 ~]# echo "ZGF4aXVnZTox" | base64 -d
+daxiuge:1
+
+在 vm2 主机,使用 limit 模块对 nginx 限制并发,限制并发数量为 10,burst 为 10
+[root@vm2 ~]# vim /usr/local/nginx/conf/nginx.conf 
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;  .......
+    server {
+        listen       80;
+        server_name  localhost;
+limit_req zone=one burst=10;     .........
+[root@vm2 ~]# ab -n100 -c100 http://192.168.2.30/
+Complete requests:      100
+Failed requests:        89
+
+在 vm2 主机,设置 nginx 拒绝所有非 POST 或 GET 的请求(这题意是什么意思)
+[root@vm2 ~]# vim /usr/local/nginx/conf/nginx.conf
+server {
+        listen       80;
+        server_name  localhost;
+limit_req zone=one burst=10;
+
+if ($request_method !~ ^(GET|POST)$){
+ return 444;
+}  .............
+
+在 vm2 主机,设置 nginx 防止 buffer 数据溢出
+[root@vm2 ~]# vim /usr/local/nginx/conf/nginx.conf
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+加 client_body_buffer_size 1k;
+  client_header_buffer_size 1k;
+  client_max_body_size 1k;
+  large_client_header_buffers 2 1k;
+
+在 vm2 主机登陆 mariadb 服务器,创建一个可以从远程登陆的数据库账户
+MariaDB []> grant all on *.* to daxiuge@'%' identified by "8";
+
+在 vm2 主机使用 tcpdump 对 3306 进行抓包,在 vm1 连接 vm2 的数据库,进行查询操
+作,回到 vm2 观察抓取的数据包信息
+[root@vm2 ~]# tcpdump -i eth1 -A host 192.168.2.20 and tcp port 3306
+
+在 vm2 安装 tomcat,并以 tomcat 身份降级启动 tomcat 服务
+[root@vm2 ~]# useradd tomcat
+[root@vm2 ~]# chown -R tomcat:tomcat /usr/local/tomcat/
+[root@vm2 ~]# su -c /usr/local/tomcat/bin/startup.sh tomcat
+
+在 vm2 主机执行如下命令:
+mkdir -p /root/{source1.0,surce2.0}/test/
+echo “hehe” > /root/source1.0/test.conf
+echo “haha” > /root/source2.0/test.conf
+echo “hello” > /root/source1.0/test/hello.shvm
+echo “hello world” > /root/source2.0/test/hello.sh
+cp /bin/find /root/source1.0/
+cp /bin/find /root/source2.0/
+echo “xyz” >> /root/source2.0/find
+在 vm2 主机对/root/source1.0 和/root/source2.0 生成补丁文件,并使用 patch 工具对
+source1 目录下的所有代码打补丁
+[root@vm2 ~]# diff -Nua source1.0/ source2.0/ > 1.patch
+[root@vm2 ~]# patch -p0 < 1.patch
+
+
+准备 2 台虚拟机,配置如下:
+vm1(eth1:192.168.2.20,设置网关为 192.168.2.30)
+vm2(eth1:192.168.2.30,eth2:201.1.1.30),开启路由转发
+vm3(eth2: 201.1.1.40,设置网关为 201.1.1.30)
+[root@vm1 ~]#nmcli connection modify eth1 ipv4.gateway 192.168.2.30
+[root@vm1 ~]# nmcli con up eth1
+[root@vm2 ~]# nmcli connection add type ethernet con-name eth2 ifname eth2
+[root@vm2 ~]# nmcli connection modify eth2 ipv4.method manual ipv4.addresses 201.1.1.30/24
+[root@vm2 ~]# nmcli con up eth2
+[root@vm3 ~]# nmcli connection add type ethernet con-name eth2 ifname eth2
+[root@vm3 ~]# nmcli connection modify eth2 ipv4.method manual ipv4.addresses 201.1.1.40/24 ipv4.gateway 192.168.2.30
+[root@vm3 ~]# nmcli con up eth2
+
+在 vm2 主机设置防火墙规则:
+禁止任何其他主机 ping 本机,但本机可以 ping 其他主机
+[root@vm2 ~]# iptables -t filter -I INPUT -p icmp --icmp-type echo-request -j REJECT
+
+禁止 192.168.2.20 通过 ssh 远程本机
+[root@vm2 ~]# iptables -t filter -I INPUT -p tcp -s 192.168.2.20 --dport 22 -j REJECT
+
+通过 mac 地址禁止 vm3 访问本机的 ftp 服务
+([root@vm2 ~]# iptables -t filter -I INPUT -s 201.1.1.40 -p tcp --dport 21 -j REJECT这个别人通过改IP后可以访问)
+[root@vm2 ~]# iptables -I INPUT -p tcp --dport 22 -m mac --mac-source 52:54:00:D8:8A:1F -j DROP
+
+通过一条规则设置允许访问本机的 80,3306,25 端口
+[root@vm2 ~]# iptables -A INPUT -p tcp -m multiport --dports 80,3306,25 -j ACCEPT
+
+禁止任何主机通过本机的 eth2 网卡访问本机的 53 端口
+[root@vm1 ~]# iptables  -I INPUT -p tcp -i eth2 --dport 53 -j REJECT
+还漏了vm2# iptables -I INPUT -i eth2 -p udp --dport 53 -j REJECT
+
+禁止 vm2 转发任何与 ftp 有关的数据包
+[root@vm2 ~]# iptables -I FORWARD -p tcp --dport 22 -j DROP（REJECT）
+
+设置 SNAT 规则,来源于 192.168.2.0 网络的数据包,修改源地址为 201.1.1.30
+[root@vm2 ~]# iptables -t nat -I POSTROUTING -s 192.168.2.0/24 -p tcp --dport 80 -j SNAT --to-source 201.1.1.30
+完善方案：([root@vm2 ~]# iptables -t nat -I POSTROUTING -s 192.168.2.0/24 -p tcp --dport 80 -j MASQUERADE)
+答案vm2# iptables -t nat -s 192.168.2.0/24 -j SNAT --to-source 201.1.1.30
+

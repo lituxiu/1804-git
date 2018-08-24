@@ -1,0 +1,7 @@
+NoSQL-DAY01
+知识点
+NoSQL介绍
+搭建Redis服务器
+常用操作命令
+配置文件解析（1）
+配置Lnmp+redis

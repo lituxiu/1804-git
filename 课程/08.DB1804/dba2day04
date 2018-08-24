@@ -1,0 +1,256 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           2018年7月24日
+总结高可用集群（HA）
+一、准备高可用集群环境：
+一主多从（到少需要三台机器）：半同步复制，禁用自动删除中继日志文件
+ssh秘钥认证登陆： 56-->(51-55)  51<-->55（互相）
+所有数据库服务器要给管理主机添加监控时的连接用户 grant all on *.* to root@'%' identified by '123456';
+在所有主机上安装mha软件依赖的perl软件包
+
+二、配置高可用集群：
+数据库服务器（51－56）：安装mha_node软件包
+管理主机56：安装mha_node和mha_mnanager软件包
+创建管理命令
+编写主配置文件app1.cnf(定义56主机本机的配置 指定数据库服务器)
+                          [server default] [serverX]
+创建vip地址切换脚本 chmod +x master_ip_failover
+                      定义VIP地址    VIP地址部署在那块网卡上
+测试配置文件：
+   masterha_check_ssh --conf=/etc/mha_manager/app1.cnf
+   masterha_check_repl --conf=/etc/mha_manager/app1.cnf
+查看服务状态：
+   masterha_status --conf=/etc/mha_manager/app1.cnf
+
+awk 'BEGIN{ip=[$1]};ip++;END{(for i in ip),print i,ip}'
+awk '{ip[$1]++}END{for(i in ip){print i,ip[i]}}'
+
+
+DB2_day4
+MYSQL视图
+基本使用
+创建视图 
+mysql> create table db9.user(name char(50),password char(1),uid int(2),gid int(2),comment char(150),homedir char(150),shell char(50));
+mysql> system cp /etc/passwd /var/lib/mysql-files/
+mysql> load data infile "/var/lib/mysql-files/passwd" into table db9.user fields terminated by ":" lines terminated by "\n";
+
+create view 名 as SQL查询   表文件只有v1.frm
+create view v1 as select name,uid,shell,homedir from user;
+create view v2 (vname,vuid,vshell,abc) as select name,uid,shell,homedir from user;
+show tables;
+mysql> show table status\G; -->Comment:VIEW 视图表格式
+mysql> show table status where Comment="VIEW"\G;
+mysql> show create view v1 \G;
+mysql> drop view v1;
+
+mysql> create view v4 as select * from t1 left join t2 on t1.name=t2.name and t1.uid=t2.uid;
+ERROR 1060 (42S21): Duplicate column name 'name'
+
+sahmysql> create view v3 as select t1.name as aname,t2.name as bname,t1.uid as auid,t2.uid as buid from t1 left join t2 on t1.uid=t2.uid;
+mysql> create view v4 as select a.name as aname,b.name as bname,a.uid as auid,b.uid as buid from t1 a left join t2 b on a.uid=b.uid;(a,b分别是t1和t2的别名)
+
+mysql> create or replace view v3 as select name,uid from user;
+(覆盖创建视图)
+
+创建视图时，忽略已有的视图
+create view v3 as select name,uid from user;
+create or replace view v3 as select 
+
+选项with check option控制
+mysql> create table user2 select id,name,password,homedir from user where uid<=40;
+mysql> create view v6 as select * from user2 where id<=10 with check option;
+mysql> show  create view v6;
+    WITH CASCADED CHECK OPTION 
+mysql> update v6 set id=11 where name="root";
+ERROR 1369 (HY000): CHECK OPTION failed 'db9.v6'
+mysql> update v6 set id=9 where name="root";
+Query OK, 1 row affected (0.05 sec)
+Rows matched: 1  Changed: 1  Warnings:
+mysql> create view v7 as select name,id,password from user2 where id<=18;
+mysql> select * from v7;  (v7作为基表)
+mysql> create view v17 as select name,id,password from v7 where id>=10 with check option;
+mysql> select * from v17
+mysql> update v17 set id=20 where name="rpc";
+ERROR 1369 (HY000): CHECK OPTION failed 'db9.v17'（更改失败）
+（注意要满足自己和基表的限制，v7的id<=18,v17的id>=10,故v17要满足id>=10且id<=19）
+
+with local check option选项
+mysql> create view v18 as select name,id,password from v7 where id >=10 with local check option;
+mysql> update v18 set id=20 where name="rpc";
+Query OK, 1 row affected (0.06 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+mysql> select * from v18; 无rpc
+mysql> select * from v7; 无rpc
+mysql> select * from user2; name="rpc"的id从18变为20
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+
+MYSQL存储过程：MYSQL服务里脚本(shell)
+创建存储过程
+mysql> delimiter //
+mysql> create procedure p1()
+    -> begin
+    -> select count(name) from db9.user;
+    -> end
+    -> //
+Query OK, 0 rows affected (0.04 sec)
+mysql> delimiter ;结束存储过程（注意分号前有空格）
+mysql> select db,name,type,body from mysql.proc where name="p1"\G;
+mysql> select count(name) from db9.user;
++-------------+
+| count(name) |
++-------------+
+|          41 |
+mysql> call p1;(调用存储过程)
++-------------+
+| count(name) |
++-------------+
+|          41 |
+删除存储过程
+mysql> drop procedure p1;
+mysql> call p1;
+ERROR 1305 (42000): PROCEDURE db9.p1 does not exist
+
+mysql> create procedure p1()
+    -> begin
+    -> select count(name) from user where shell="/bin/bash";
+    -> end
+    -> //
+Query OK, 0 rows affected (0.05 se
+mysql> call p1;
++-------------+
+| count(name) |
++-------------+
+|           2 |
+
+变量
+shell变量4种（系统变量，位置变量，预定义变量，自定义变量）
+mysql变量(会话变量，全局变量,用户变量，局部变量)
+（系统变量）：会话变量，全局变量，
+show session variables;show global variables;
+用户变量
+mysql> set @name="kaka";
+mysql> select @name;
++-------+
+| @name |
++-------+
+| kaka  |
+
+set @name;
+select count(name) into @name from user;
+
+局部变量:只用在存储中begin与end之间，只在存储中有效
+mysql> set @x=9;
+mysql> create procedure p2()
+    -> begin
+    -> declare x int default 99;
+    -> declare name char(10);
+    -> set name="daxiuge8";
+    -> select x;
+    -> select name;
+    -> end
+    -> //
+Query OK, 0 rows affected (0.04 sec)
+mysql> delimiter ;
+mysql> call p2;------->x=99,name=daxiuge8
+mysql> select @x;----->x=9
+
+参数类型(in,out,inout),默认in类型
+in类型
+mysql> delimiter //
+mysql> create procedure p4(in shellname char(20))括号里不写的话默认是in类型
+    -> begin
+    -> select count(name) from user where shell=shellname;
+    -> end
+    -> //
+Query OK, 0 rows affected (0.03 sec)
+mysql> delimiter ; 
+mysql> call p4("/bin/bash");
+out类型
+delimiter //
+create procedure p7(out number int(2))
+begin
+select count(id) into number from user;select number;
+end
+//
+delimiter ;
+mysql> call p7(); Incorrect不正确
+mysql> select @w;
+mysql> call p7(@w);
++--------+
+| number |
++--------+
+|     41 |
++--------+
+
+inout类型
+delimiter //
+create procedure p2(shellname char(20))
+begin
+select count(shell) from user where shell=shellname;
+end
+//
+delimiter ;
+mysql> call p2("/bin/bash");
++--------------+
+| count(shell) |
++--------------+
+|            2 |
+
+运算符及其用法
+mysql> set @var1=2+2;mysql> select @var1;
+mysql> set @x=50;mysql> set @y=50;mysql> set @j=@x+@y;mysql> select @j;
+
+delimiter //
+create procedure say(in bash char(10),in nologin char(15),out x int(2),out y int(2))
+begin
+declare z int(2);
+set z=0;
+select count(shell) into x from user where shell=bash;
+select count(shell) into y from user where shell=nologin;
+set z=x+y;
+select z;
+end 
+//
+delimiter ;
+mysql> call say("/bin/bash","/sbin/nologin",@a,@b);
+以上相当于以下的内容
+mysql> select count(shell) from user where shell="/bin/bash" or shell="/sbin/nologin";
+
+
+
+流程控制
+
+
+游戏网站：
+统计在线用户量
+统计新注册的游戏账号
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

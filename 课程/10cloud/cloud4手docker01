@@ -1,0 +1,154 @@
+docker day01
+用途:docker打包应用环境
+docker(RHEL6.5以上,强推荐RHEL7),需关闭防火墙(但不必需)
+2台机器 内存4G
+rpm包:真机12cloud文件里第4个
+软件包列表:docker-engine和docker-engine-selinux
+传到svn(192.168.1.11)和svn2(192.168.1.22)机子上
+svn docker 1]# yum -y install docker-engine-selinux-1.12.1-1.el7.centos.noarch.rpm
+
+svn docker 1]# yum -y install docker-engine-1.12.1-1.el7.centos.x86_64.rpm
+]# systemctl start docker   //会生成一个网卡docker0
+]# systemctl enable docker
+查看版本
+svn docker 1]# docker version
+Client:
+ Version:      1.12.1
+ API version:  1.24
+ Go version:   go1.6.3
+ Git commit:   23cf638
+ Built:        
+ OS/Arch:      linux/amd64
+
+docker的命令和yum的相似(docker --help)
+docker images 查找镜像
+docker search centos 搜索镜像(https://hub.docker.com官网提供的镜像仓库地址)
+
+下载镜像(从镜像仓库中下载镜像)  (pull拉(下载) push推(上传))
+~]# docker pull busybox
+Using default tag: latest
+latest: Pulling from library/busybox
+8c5a7da1afbc: Pull complete 
+Digest: sha256:cb63aa0641a885f54de20f61d152187419e8f6b159ed11a251a09d115fdff9bd
+Status: Downloaded newer image for busybox:latest
+查看镜像(有)
+]# docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+busybox             latest              e1ddd7948a1c        2 weeks ago 
+
+导出镜像备份
+docker save busybox:latest >busybox.tar #备份镜像为tar包
+导入镜像
+docker load <busybox.tar #恢复备份的tar包
+导入备份好的tar包
+centos.tar  nginx.tar  redis.tar  registry.tar  ubuntu.tar
+
+
+docker run -it centos:latest /bin/bash 启动镜像 
+ps -ef 只有一个/bin/bash进程     这个/bin/bash的PID变成1
+sleep 12346
+连接容器的虚拟机上可以查看sleep的进程,但不同虚拟机间不能查看互相间的进程,容器也看不到连自己的虚拟机的进程
+启动容器
+docker run -it centos:latest /bin/bash
+
+查看容器
+docker ps -a [查看所有容器]
+
+删除镜像
+docker rmi 镜像名称:标签
+创建镜像别名
+docker tag 源镜像名称:标签 新名称:新标签
+
+[root@docker01 ~]# docker run -it centos /bin/echo hello
+hello
+[root@docker01 ~]# docker run -it centos /bin/bash
+[root@dccb17baa50a /]# 
+
+镜像启动一个容器,容器基于镜像和进程
+[root@docker01 ~]# docker run -it centos /bin/bash
+[root@dccb17baa50a /]# touch daxiuge888
+[root@dccb17baa50a /]# ls -ld /daxiuge888 
+-rw-r--r-- 1 root root 0 Aug 20 06:08 /daxiuge888
+退出(再连上相当于重新开一个新进程了)
+[root@docker01 ~]# docker run -it centos /bin/bash
+[root@97f143aa4322 /]# ls -ld /daxiuge
+bash: $'\345ls': command not found
+
+docker ps  显示正在运行的容器
+docker ps --all(或-a)  显示所有运行过的容器(包括以前启动的)
+
+进程分两种:一是可交互,二是系统服务(非交互)
+systemctl stop sshd
+/usr/sbin/sshd -D
+
+docker run -it nginx 卡住了(类似sshd服务不放在后台,sleep多少秒)
+docker run -d nginx (后台服务启动)类似cat a .sh -->/bin/bash  ./a.sh 就退出
+
+(basybox,ubuntu,centos)
+[root@docker01 ~]# docker run -it busybox /bin/bash
+docker: Error response from daemon: oci runtime error: exec: "/bin/bash": stat /bin/bash: no such file or directory.
+[root@docker01 ~]# docker run -it busybox 
+/ # ls 
+bin   dev   etc   home  proc  root  sys   tmp   usr   var
+
+(nginx,)
+redis不加解析器是显示redis日志, 加了不
+
+删除镜像docker imi 镜像名
+
+md5sum
+ls -i 查看文件的i节点(看两个文件是不是同一个文件)
+
+[root@docker01 ~]# docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+b2d148220258        centos              "/bin/bash"         2 minutes ago       Up 2 minutes                            silly_yalow
+查看容器执行的命令(dock top 加id号)
+[root@docker01 ~]# docker top b2d148220258
+UID                 PID                 PPID                C                   STIME               TTY                 TIME                CMD
+root                3453                3439                0                   16:17               pts/2               00:00:00            /bin/bash
+
++++++++++++++++++++++++++++++++++++++++++++++
+rpm -qf 还有-qi
+
+docker exec|attach进入容器(忌用attach会kill服务挂了)
+如不小心docker attach连上容器,sleep 123456
+
+exec进入容器时(如果容器关了,要先启动,再exec进去)
+docker01 ~]# docker ps -qa
+docker01 ~]# docker start 1446c9600f20  //docker start启动容器后,exit出容器,容器也会一直在进行,要docker stop停止才行
+1446c9600f20
+docker01 ~]#  docker exec -it 14 bash
+[root@1446c9600f20 /]#
+
+– docker images //查看镜像列表
+– docker history //查看镜像制作历史
+– docker inspect //查看镜像底层信息
+– docker pull //下载镜像
+– docker push //上传镜像
+– docker rmi //删除本地镜像
+– docker save //镜像另存为tar包
+– docker load //使用tar包导入镜像
+– docker search //搜索镜像
+– docker tag //修改镜像名称和标签
++++++++++++++++++++++++++++++++
+– docker run //运行容器    这个是运行容器直接的,exit退出容器就不运行
+– docker start //启动容器  开启容器后再exec或run进入容器,exit退出,容器还一直在运行
+– docker stop //关闭容器
+– docker ps //查看容器列表
+– docker start //启动容器
+– docker restart //重启容器
+– docker attach|exec //进入容器
+– docker inspect //查看容器底层信息
+– docker top //查看容器进程列表
+– docker rm //删除容器
+
+]# docker ps 
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+0676f0bc28f9        6aced353b536        "bash"              17 hours ago        Up 3 minutes 
+运用同一个容器时,run和exec区别
+docker run -it 6aced353b536 bash  //run后加iname
+docker exec -it 06 bash  //exec后加id前两位就可
+
+
+
+

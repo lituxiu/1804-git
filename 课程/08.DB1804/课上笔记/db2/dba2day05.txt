@@ -1,0 +1,379 @@
+delimiter //
+create procedure showlines(in numbers int(2))
+begin
+select id,name,password from db9.user limit numbers;
+end 
+//
+delimiter ;
+call showlines（1）；
+
+set @x=20;
+call showlines(@x);
+
+判断结构
+if双分支结构
+delimiter //
+create procedure showlines2(in numbers int(2))
+begin
+if numbers is null then
+select id,name,password from db9.user limit 1;
+else 
+select id,name,password from db9.user limit numbers;
+end if;
+end 
+//
+delimiter ;
+
+循环结构格式1:for
+while 条件 do
+  执行命令
+
+delimiter //
+create procedure prinum(in numbers int(2))
+begin
+  declare x int(2) default 1;
+   while x<=numbers do
+     select x;
+      set x=x+1;
+  end while;
+end
+//
+delimiter ;
+
+找出user表中UID为偶数的行
+方法一
+delimiter //
+create procedure num1(in number int(2))
+begin
+  declare x int(2) default 0;  (定义局部变量)
+   while x<=number do
+if x%2=0  then
+      select name,uid from user where uid=x;
+end if;
+      set x=x+1;
+  end while;
+end
+//
+delimiter ;
+
+方法二
+delimiter //
+create procedure num2()
+begin
+   declare numlines int(2);
+  declare x int(2) default 1;
+  declare useruid int(2);
+  select count(*) into numlines from user;
+  while x <= numlines do
+      select uid into useruid from user where id =x ;
+  if useruid % 2 =0 then
+      select name,uid from user where id=x;
+  end if;
+  set x=x+1;
+  end while;
+end 
+//
+
+delimiter ;
+
+方法三
+delimiter //
+create procedure num3(in numbers int(2))
+begin 
+  declare x int(2) default 0;
+  while x<=numbers do
+  select name,uid from user where uid =x and x%2=0;
+  set x=x+2;
+  end while;
+end 
+//
+delimiter ;
+
+方法二的优化版方法四
+delimiter //
+create procedure num4(in numlines int(2))
+begin
+## declare numlines int(2);
+  declare x int(2) default 1;
+  declare useruid int(2);
+## select count(*) into numlines from user;
+  while x <= numlines do
+      select uid into useruid from user where id =x ;
+  if useruid % 2 =0 then
+      select name,uid from user where id=x;
+  end if;
+  set x=x+1;
+  end while;
+end 
+//
+delimiter ;
+这
+delimiter //
+create procedure num4(in numlines int(2))
+begin
+  declare x int(2) default 1;
+  declare useruid int(2);
+  while x <= numlines do
+      select uid into useruid from user where id =x ;
+  if useruid % 2 =0 then
+      select name,uid from user where id=x;
+  end if;
+  set x=x+1;
+  end while;
+end 
+//
+delimiter ;
+
+存储过程是存在 mysql.proc;
+
+循环结构格式2:loop死循环
+ loop
+      执行的sql命令
+ end loop;
+
+delimiter //
+create procedure loop1()
+begin 
+declare x int(2) default 1;
+loop select x;
+set x=x+1;
+end loop;
+end
+//
+delimiter ;
+mysql> call loop1;高用命令后一直死循环执行(手动Ctrl+c终止)
+
+循环结构格式3:
+repeat
+   执行的命令(循环体);
+   ....
+  until 条件判断
+end repeat;
+
+delimiter //
+create procedure for3()
+begin 
+declare x int(2) default 1;
+repeat 
+  select x;
+  set x=x+1;
+  until x=5
+end repeat;
+end 
+//
+delimiter ;
+
+shell: break 结束循环
+       continue 跳出某次循环继续下一次循环
+流程控制函数:控制循环结构执行的函数
+LEAVE 标签名;  结束循环(和shell的break功能一样)
+
+delimiter //
+create procedure loop2()
+begin
+declare x int(2) default 1;
+label:loop
+select x;
+set x=x+1;
+if x=5 then
+LEAVE label;
+end if;
+end loop;
+end
+//
+delimiter ;
+
+输出1-100之间,含有
+delimiter //
+create procedure prinum2()
+begin
+ declare x int(2) default 1;
+ label:while x <=100 do
+    if x%5=0 or x regexp 5 then
+    select x ;
+    else
+    set x=x+1;
+    ITERATE label;
+    end if;
+ set x=x+1;
+ end while;
+end
+//
+delimiter ;
+(if x%5=0 or x regexp 5 then和if x%5=0 or x like "%5%" then效果一样)
+
+delimiter //
+create procedure prinum3()
+begin
+ declare x int(2) default 1;
+ label:while x <=100 do
+    if x%5=0 or x like 5 then (like不行匹配51,52,53,54)
+    select x ;
+    else
+    set x=x+1;
+    ITERATE label;
+    end if;
+ set x=x+1;
+ end while;
+end
+//
+delimiter ;
+
+delimiter //
+create procedure prinum3()
+begin
+ declare x int(2) default 1;
+ label:while x <=100 do
+    if  x  like "%5%" then 
+    select x ;
+    else
+    set x=x+1;
+    ITERATE label;
+    end if;
+ set x=x+1;
+ end while;
+end
+//
+delimiter ;
+
+if x%5=0 or x like 5 then (like不行匹配51,52,53,54)
+if x%5=0 or x like "%5%" then (like能匹配51,52,53,54)
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+DBA2_day5
+数字分片 50 51 52 53
+什么是分库分表
+  将存放在一个数据库(主机)中的数据,按照特定方式进行拆分,分散存放到多个数据库(主机)中,以达到分散单台设备负载的效果
+
+如何解决并发访问压力?
+如何解决单表过大的问题?
+
+db1---->192.168.4.50
+注册账号 表
+商铺信息 表
+商品信息 表
+
+mycat软件
+配置mycat服务器host51
+1.装包
+51 ~]# tar -xf Mycat-server-1.4-beta-20150604171601-linux.tar.gz
+51 ~]# rpm -a | grep -i jdk 查看51是否有装JAVA的jdk包(以下是已安装)
+java-1.8.0-openjdk-1.8.0.131-11.b12.el7.x86_64
+java-1.8.0-openjdk-headless-1.8.0.131-11.b12.el7.x86_64
+copy-jdk-configs-2.2-3.el7.noarch
+51 ~]# ls mycat/
+bin  catlet  conf  lib  logs  version.txt
+51 ~]# mv mycat/ /usr/local/
+
+2.工作目录说明
+/usr/local/mycat/conf/rule.xml 分片规则文件
+/usr/local/mycat/conf/schema.xml 定义分片对象  
+/usr/local/mycat/conf/server.xml   定义
+
+3.修改配置文件
+/usr/local/mycat/conf/schema.xml
+/usr/local/mycat/conf/server.xml
+
+vim /usr/local/mycat/conf/server.xml
+ <user name="test">
+ 35                 <property name="password">test</property>
+ 36                 <property name="schemas">TESTDB</property> 这个是虚拟库,可随便定
+ 37         </user>
+ 38 
+ 39         <user name="user">
+ 40                 <property name="password">user</property>
+ 41                 <property name="schemas">TESTDB</property>
+ 42                 <property name="readOnly">true</property>
+ 43         </user>
+
+修改后
+<user name="admin">
+ 35                 <property name="password">123456</property>
+ 36                 <property name="schemas">TESTDB</property>
+ 37         </user>
+ 38 
+ 39         <user name="webuser">
+ 40                 <property name="password">654321</property>
+ 41                 <property name="schemas">TESTDB</property>
+ 42                 <property name="readOnly">true</property>
+ 43         </user>
+
+
+vim /usr/local/mycat/conf/schema.xml
+
+
+
+
+
+启动服务
+# /usr/local/mycat/bin/mycat start
+# ss -antupl | grep :8066
+
+测试配置
+50 ~]# mysql -uadmin -p123456 -S /var/lib/mysql/mysql.sock -h192.168.4.51 -P8066
+<table name="employee" primaryKey="ID" dataNode="dn1,dn2"
+                        rule="sharding-by-intfile" />
+<tableRule name="sharding-by-intfile">
+                <rule>
+                        <columns>sharding_id</columns>   枚举算法
+                        <algorithm>hash-int</algorithm>
+                </rule>
+        </tableRule>
+ <function name="hash-int"
+                class="org.opencloudb.route.function.PartitionByFileMap">
+                <property name="mapFile">partition-hash-int.txt</property>
+        </function>
+
+]# vim /usr/local/mycat/conf/partition-hash-int.txt 
+10000=0     对应     --dn1  c1  192.168.4.52  db1
+10010=1          --dn2  c2  192.168.4.53  db2
+ 
+sharding_id 枚举
+10000    --dn1
+10010    --dn2
+
+查到库里有表,但是是虚拟表,要建立
+user TESTDB;
+show tables;
+create table employee(ID int(2)primary key auto_increment,name char(15),pay float(7,2),sex enum("boy","girl"),sharding_id int(2));
+insert into employee(name,pay,sex,sharding_id)values("kaka",1888,"boy",10000),("cluo",3888,"boy",10000),("beier",2888,"boy",10000),("meixi",2888,"boy",10010),("nerma",1888,"boy",10010);
+host52
+mysql> select * from employee;
++----+-------+---------+------+-------------+
+| ID | name  | pay     | sex  | sharding_id |
++----+-------+---------+------+-------------+
+|  1 | kaka  | 1888.00 | boy  |       10000 |
+|  2 | cluo  | 3888.00 | boy  |       10000 |
+|  3 | beier | 2888.00 | boy  |       10000 |
+host53
+mysql> select * from employee;
++----+-------+---------+------+-------------+
+| ID | name  | pay     | sex  | sharding_id |
++----+-------+---------+------+-------------+
+|  1 | meixi | 2888.00 | boy  |       10010 |
+|  2 | nerma | 1888.00 | boy  |       10010 |
+
+课前回顾
+in 类型的参数是用来给存储过程传值
+out 类型的参数用来接收存储过程输出结果
+int类型
+delimiter //
+create procedure p101(in x char(10))
+begin
+select name from db9.user where name="x";
+end
+//
+delimiter ;
+call p101("bobo");call p101("root");
+out类型
+delimiter //
+create procedure p102(out y int(2));
+begin
+select count(name) into y from db9.user where shell="/bin/bash";
+select y;
+end
+//
+delimit ;
+错误:call p102(8)或call p102()是错误的
+只能调用一个变量占位-->call p102(@a);@a值空和有值无影响,主要是用变量"占位,占位,占位"
+

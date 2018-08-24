@@ -1,0 +1,300 @@
+准备集群环境：
+一主多从  ：  半同步复制   禁用自动删除中继日志文件
+ssh秘钥对认证登陆：   56-->(51-55)   51<->55
+所有数据库服务器 要给管理主机添加监控时的连接用户
+grant  all on  *.*  to  root@"%"  identified by "123qqq...A";
+在所有主机上安装mha软件依赖的perl软件包
+
+配置高可用集群：
+数据库服务器（51-56）
+安装mha_node软件包
+
+管理主机（56）
+安装mha_node和mha_manager软件包
+创建管理命令 
+编写主配置文件 app1.cnf  (定义56主机本机的配置   指定数据库服务器)
+                                         [server default]           [serverX]
+
+创建vip地址切换脚本  chmod  +x  master_ip_failover
+                                                     定义VIP地址
+			  VIP地址部署在那块网卡上 
+
+测试配置文件：
+masterha_check_ssh  --conf=/etc/mha_manager/app1.cnf
+masterha_check_repl  --conf=/etc/mha_manager/app1.cnf
+
+启动管理服务：
+masterha_manager  --conf=/etc/mha_manager/app1.cnf
+
+查看服务状态：
+masterha_status  --conf=/etc/mha_manager/app1.cnf
+
+测试集群：
+1 客户端连接VIP地址访问数据库服务。能够存取数据。
+
+2 测试高可用 
+
+3 把坏掉的主库添加到集群里：运行数据库服务器   手动指定为当前主库的从库。在app1.cnf文件里添加主机信息   启动管理服务
++++++++++++++++++++++++++++++++++++
+休息到  9：50
+DBA2_day04
+MySQL视图
+
+基本使用：
+创建视图？
+create view  名  as   SQL查询；
+
+create view  v1
+as 
+select  name,uid,shell,homedir from user;
+
+create view  v2(vname,vuid,vshell,abc) 
+as 
+select  name,uid,shell,homedir from user;
+
+show tables;
+
+
+drop view v1;
+
+> create table  t1  select name,uid,shell from user limit 3 ;
+
+> create  table  t2   
+select name,uid,homedir,gid from  user limit 6;
+
+ select  *  from  t1  left join  t2  on
+t1.name=t2.name  and  t1.uid  = t2.uid;
+
+
+create view v3 as  select  *  from  t1  left join  t2  on
+t1.name=t2.name  and  t1.uid  = t2.uid;
+
+
+create view v3 as  select  t1.*  from  t1  left join  t2  on
+t1.name=t2.name  and  t1.uid  = t2.uid;
+
+休息到 11:05
+
+创建视图时，给视图表里的字段定义别名。
+create view v3 
+as  
+select  t1.name as aname , t2.name as bname , t1.uid as auid , t2.uid as buid   from  t1 left join t2  on t1.uid=t2.uid;
+
+
+create view v4 as  select  
+a.name as aname , b.name as bname , a.uid as auid , b.uid as  buid   from t1 a left join t2 b on a.uid=b.uid;
+
+创建视图时，忽略已有的视图
+create  view  v3 as select name,uid from user;
+create or replace view  v3 as select name,uid from user;
+
+
+create  view  v3 as select name,uid from user  with check option;
+ 
+
+with check option
+local  仅检查视图的创建条件。
+CASCADED  同时要满足基本的限制
+
+mysql> create table user2  select id,name,password,homedir from user  where uid <=40;
+
+mysql>  select  * from user2;
+
+mysql> create view  v6
+    -> as
+    -> select  * from  user2  where id<=10
+    -> with check option;
+
+update  v6  set  id=9 where name="root";
+
+select  * from v6;
+
+
+mysql> create view  v7 
+    -> as
+    -> select name,id,password from user2 where id<=18;
+select  * from  v7;
+
+create view  v17  as
+select  name,id,password from v7 where  id >=10
+with  check option;
+select  * from  v17;
+update v17 set id=20 where name="rpc";
+update v17 set id=15 where name="rpc";
+select  * from  v7;
+select  * from  v17;
+select  * from  user2;
+休息到 15:05
+
+create view  v18  as
+select  name,id,password from v7 where  id >=10
+with  local  check option;
+
+update v18 set id=20 where name="rpc";
+select   * from v18;
+select   * from v7;
+select   * from user2;
+++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++
+MySQL存储过程： MySQL服务里的脚本
+
+delimiter //
+create procedure p1()
+begin
+select count(name) from db9.user;
+end
+//
+delimiter ;
+
+
+mysql> select  db,name,type,body  from mysql.proc 
+
+mysql> select  db,name,type,body  from mysql.proc where name="p1"\G;
+
+call  p1;
+call  p1();
+
+
+mysql> drop procedure p1;
+
+
+
+delimiter //
+create procedure p1()
+begin
+    select count(name)  from user where shell="/bin/bash";      
+end
+//
+delimiter ;
+
+call  p1;
+休息到 16:00
+MySQL变量
+系统环境 ： 
+会话变量  全局变量   
+show session variables;  show global variables; 
+
+
+用户变量：
+mysql> set  @name="yaya";
+mysql> select  @name;
+
+局部变量：在存储过程里有效
+declare  @x=9;
+
+
+
+set  @x  =  9;
+delimiter //
+create procedure p3()
+begin
+         declare  x int  default  99;
+         declare  name char(10);
+         set name = "bob";
+        select  x ,  name;
+end
+//
+delimiter ;
+call  p2;
+select @x;
+++++++++++++++++++++++++++++++++++
+存储过程参数类型  in   out    inout
+
+
+delimiter //
+create procedure p4( in shellname char(20) )
+begin
+       select  count(name)  from user where  shell=shellname;     
+end
+//
+delimiter ;
+
+call  p4();  
+
+call  p4("/bin/bash");
+
+set  @x =  "/sbin/nologin"
+call  p4(@x);
+
+休息到17:10
+delimiter //
+create procedure p7(out   number  int(2))
+begin
+       set  number = 9;
+       select  number;
+       select count(id) into number  from user;
+       select  number;
+end
+//
+delimiter ;
+
+call  p7(8);
+select @w;
+call  p7(@w);
+
+delimiter //
+create procedure p2(shellname char(20))
+begin
+         select count(shell) from user  where shell=shellname; 
+end
+//
+delimiter ;
+
+call p2("/bin/bash");
+call p2("sync");
+
+
+++++++++++++++++++++++++++
+drop procedure if exists say;
+delimiter //
+create procedure say(in  bash  char(10),in nologin char(15),out  x  int(2), out  y  int(2))
+begin
+         declare  z  int(2) ;
+         set  z  = 0;
+         select  count(shell)  into   x  from user where  shell=bash;
+         select  count(shell)  into   y  from user where  shell=nologin;
+         set  z = x  + y;
+         select  z;
+end
+//
+delimiter ;
+
+
+
+
+
+
+delimiter //
+create procedure p1()
+begin
+          
+end
+//
+delimiter ;
+
+
+流程控制
+DBA2_DAY05  数据分片   50   51  52  53  
+
+游戏网站：
+
+统计在线用户量
+统计新注册的游戏账号
+
+DBA  
+MySQL>  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

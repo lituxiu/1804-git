@@ -1,0 +1,276 @@
+day04
+
+装包
+]#mkdir -p /usr/local/mongodb
+]#tar -zxvf mongodb-linux-x86_64-rhel70-3.6.3.tgz 
+]#cp -r  mongodb-linux-x86_64-rhel70-3.6.3/bin/      
+
+/usr/local/mongodb/
+
+]#cd /usr/local/mongodb/
+]#mkdir  etc   logs   
+]#mkdir  data/db
+]# ls  
+]#vim /etc/profile
+export  PATH=/usr/local/mongodb/bin:$PATH
+:wq
+]#source /etc/profile
+]#echo  $PATH
+
+编写服务的配置文件
+vim  /usr/local/mongodb/etc/mongodb.conf
+logpath=/usr/local/mongodb/logs/mongodb.log
+logappend=true
+dbpath=/usr/local/mongodb/data/db
+fork=true
+:wq
+启动服务
+[root@host51 mongodb]# mongod  -f 
+
+/usr/local/mongodb/etc/mongodb.conf 
+about to fork child process, waiting until server is ready for 
+
+connections.
+forked process: 10634
+child process started successfully, parent exiting
+查看服务信息
+[root@host51 mongodb]# 
+[root@host51 mongodb]# ps -C  mongod
+  PID TTY          TIME CMD
+10634 ?        00:00:00 mongod
+[root@host51 mongodb]# 
+[root@host51 mongodb]# netstat  -utnlp  | grep  -i  mongod
+tcp        0      0 127.0.0.1:27017         0.0.0.0:*               LISTEN      
+
+10634/mongod        
+[root@host51 mongodb]# mongo
+> exit
+
+[root@host51 mongodb]#
+
+停止服务
+[root@host51 mongodb]# mongod  -f 
+
+/usr/local/mongodb/etc/mongodb.conf  --shutdown
+killing process with pid: 10634
+
+
+把启动和停止服务命令名定义别名
+alias startmgo='mongod  -f 
+
+/usr/local/mongodb/etc/mongodb.conf'
+alias stopmgo='mongod  -f 
+
+/usr/local/mongodb/etc/mongodb.conf  --shutdown'
+
+休息到11:30
+
+
+修改服务使用的ip地址和端口号
+]#vim  /usr/local/mongodb/etc/mongodb.conf
+.....
+.....
+bind_ip=192.168.4.51
+port=27051
+:wq
+
+]#stopmgo
+]#startmgo
+
+[root@host51 mongodb]# netstat -utnlp  | grep mongod
+tcp        0      0 192.168.4.51:27051      0.0.0.0:*               LISTEN      
+
+11337/mongod
+
+连接服务
+]# mongo --host 192.168.4.51 --port 27051
+>
+
+常用管理命令
+
+
+> use bbsdb
+switched to db bbsdb
+> db
+bbsdb
+> show tables
+> db.c1.save({name:"bob",age:21,sex:"girl"})
+> db.c1.save({name:"bob",email:"plj@tedu.cn"})
+> show tables
+> db.c1.find()
+> 
+> db.c1.count()
+> db.c1.find()
+> db.c1.insert({name:"lucy",class:"nsd1804",tel:"9998888"})
+> db.c1.find({name:"lucy"})
+> db.c1.remove({name:"lucy"})
+> db.c1.find()
+> db.c1.remove({})
+> db.c1.find()
+> show tables;
+> db.c1.drop()
+> show tables;
+
+库的管理命令   集合的管理名   文档的管理命令
+
+
+mongodb的数据类型：
+> db.c2.save({name:"jack",school:"tarena",single:false})
+> db.c2.save({name:"lilei",school:"tarena",single:false,pay:null})
+> db.c2.find()
+> db.c2.count()
+
+
+> db.c2.save({name:"lilei",gz:18000.88})
+> db.c2.save({name:"tom",gz:18000})
+
+> db.c2.save({name:"tom",xf:NumberInt(498.23)})
+> db.c2.save({name:"tom",xf:NumberLong(4918)})
+> db.c2.save({name:"xiaoqiang",like:["girl","game","eat","sleep"]})
+> db.c2.find(）
+
+> db.c2.save(
+... {
+... lname:"php",
+... code:function(){/* <?php echo "hello boy"; ?> */ },
+... like:10000
+... }
+... )
+
+> db.c2.find({lname:"php"})
+> db.c2.save({name:"xiaohong",stu_id:ObjectId(),class:"nsd1804"})
+
+休息到15:05
+
+> db.c2.save({
+           ywzd:{wirter:"dmy",pay:68,vers:"v2"}
+           })
+
+> db.c2.save({
+         tarena: {address:"Beijing",tel:"888888",person:"hansy" }
+         })
+
+> db.c2.save({jname:"shell",rcode:/.$/}）
+> db.c2.find({jname:"shell"})
+数据类型：
+字符 "字符串"  utf-8  
+数值  301    2.33
+NumberInt(数字)
+NumberLong (数字) 
+布尔  ture  false  
+空   null  
+数组  [ 值1，值2，值N, ....]   
+日期  New  Date( ) 
+正则  /正则表达式/   
+代码function( ){/*   */}  
+对象 ObjectId( )
+
+数据导出 : 把集合里的文档存储到系统文件里
+]# mongoexport  --help
+]# mkdir /mbak
+]# mongoexport  --host  192.168.4.51  --port 27051  -d bbsdb  -c  
+
+c2 -f  name,school --type=csv  > /mbak/c2.csv
+
+]#cat   /mbak/c2.csv
+
+]# mongoexport  --host  192.168.4.51  --port 27051  -d bbsdb  -c  
+
+c2   --type=json  > /mbak/c2.json
+
+]#cat   /mbak/c2.json
+
+休息到  16:18
+数据导入：把系统文件的内容存储到集合里
+]# mongoimport --help
+
+]# mongoimport     --host  192.168.4.51  --port 27051  -d  gamedb  
+
+-c  col  --type=json   /mbak/c2.json
+
+]# mongoimport     --host  192.168.4.51  --port 27051  -d  gamedb  
+
+-c  stu --headerline  --type=csv   /mbak/c2.csv
+
+
+]# mongoimport     --host  192.168.4.51  --port 27051  -d  gamedb  
+
+-c  tea  -f name , school  --type=csv   /mbak/c2.csv
+
+
+]# mongoimport     --host  192.168.4.51  --port 27051  -d  gamedb  
+
+-c  tea  -f name , school  --type=csv   --drop  /mbak/c2.csv
+
+把系统用户信息 (/etc/passwd ) 存储到 mongodb服务器 
+userdb库下coluser集合里。  
+
+> use  userdb
+> db.coluser.save({
+... name:"yaya",
+... password:"x",
+... uid:1,
+... gid:1,
+... comment:"my teacher",
+... homedir:"/home/yaya",
+... shell:"/bin/bash"
+... })
+>db.coluser.find();
+
+]# mongoexport --host 192.168.4.51  --port 27051   -d userdb  -c 
+
+coluser  -f name,password,uid,gid,comment,homedir,shell  
+--type=csv  > /mbak/coluser.csv
+
+]# cat  /mbak/coluser.csv
+]# cp /etc/passwd /mbak/
+]# sed -i 's/:/,/g' passwd 
+]# cat passwd
+]# cd  /mbak
+]# sed -i  '2r passwd'  coluser.csv
+
+]# mongoimport  --host  192.168.4.51  --port 27051  -d userdb  -c  
+
+coluser  --headerline --drop  --type=csv /mbak/coluser.csv
+
+> db.coluser.find()
+
+17:20
+数据备份
+]# pwd
+]# mongodump --host 192.168.4.51 --port 27051
+]# ls  dump
+
+]# cd /opt
+]# mongodump --host 192.168.4.51 --port 27051 -d userdb
+]# ls  dump/userdb
+
+
+]# mongodump --host 192.168.4.51 --port 27051 -d gamedb  -c  
+
+stu  -o /bak1
+
+]# ls  /bak1
+
+数据恢复
+>  use  gamedb
+>  db.stu.remove({})
+
+]# mongorestore --host 192.168.4.51  --port 27051 -d gamedb -c  
+
+stu  /bak1/gamedb/stu.bson 
+
+>  use  gamedb
+>  db.stu.count()
+
+]#mongorestore --host 192.168.4.51  --port 27051 -d buydb -c  
+
+regtab  /bak1/gamedb/stu.bson 
+>  use  buydb
+>  db.regtab.count()
+
+
+
+
+
+

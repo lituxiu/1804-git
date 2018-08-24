@@ -1,0 +1,175 @@
+nginx
+配置LNMP环境  
+ yum -y install gcc pcre-devel openssl-devel zlib-devel 
+ tar 解压
+  useradd -s /sbin/nologin nginx
+  cd目录  ./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-stream --with-http_ssl_module --with-http_stub_status_module 
+yum -y install mariadb mariadb-server mariadb-devel
+yum -y install php php-mysql php-fpm(端口9000)    
+systemctl start mariadb php-fpm
+systemctl enable mariadb php-fpm
+vim /usr/local/nginx/conf/nginx.conf
+ location  ~  \.php$  {
+            root           html;
+            fastcgi_pass   127.0.0.1:9000;    #将请求转发给本机9000端口，PHP解释器
+            fastcgi_index  index.php;
+            #fastcgi_param   SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            include        fastcgi.conf;
+        }
+:wq
+/etc/php-fpm.d/www.conf  php-fpm的配置文件
+Nginx的默认访问日志文件为/usr/local/nginx/logs/access.log
+Nginx的默认错误日志文件为/usr/local/nginx/logs/error.log
+PHP默认错误日志文件为/var/log/php-fpm/www-error.log
+
+要知道创建基于域名,端口,IP虚拟主机
+用户验证
+# yum -y install httpd-tools(要有这个包)
+# vim /usr/local/nginx/conf/nginx.conf
+  server_name localhost;
+  auth_basic "Input Password:"; //认证提示符(可随便写)
+  auth_basic_user_file"/usr/local/nginx/pass"; 这是创建验证用户和密码存放的文件
+   (加以上两行)
+:wq
+# htpasswd -c /usr/local/nginx/pass lisi  回车输入密码(第一次创建才需加-c)
+# htpasswd /usr/local/nginx/pass  kaka  回车输入密码
+# cat /usr/local/nginx/pass
+# /usr/local/nginx/sbin/nginx -s reload
+# firefox http://192.168.4.5 (要输入用户和密码验证)
+
+配置SSL虚拟主机
+# cd /usr/local/nginx/conf
+# openssl genrsa > cert.key     //生成私钥
+# openssl req -new -x509 -key cert.key > cert.pem      //生成证书
+# vim  /usr/local/nginx/conf/nginx.conf
+listen       443 ssl;
+server_name            www.c.com;
+ssl_certificate      cert.pem;         #这里是证书文件
+ssl_certificate_key  cert.key;         #这里是私钥文件
+:wq
+# /usr/local/nginx/sbin/nginx -s reloa 
+# firefox https://www.c.com
+
++++++++++++++++++++++++++++++
+SVN：是一个自由/开源的版本控制系统
+用途：恢复数据到早期版本
+          检查数据修改历史
+          允许多人协作文档并跟踪所做的修改
+
+锁定-修改-解锁
+      一A锁定文件后忘记解锁等管理问题
+      一锁定导致不心要的串行开发（没必要轮流工作浪费时间）
+拷贝-修改-合并
+      一并行工作，修改自己的副本，合并版本
+      一个别冲突问题，需要人为解决
+
+包subversion  
+创建版本库：svnadmin create 文件夹路径 
+本地导入数据：
+web1 ~]# cd /usr/lib/systemd/system/ 
+web1 ~]# svn import . file:///var/svn/project/ -m "Init Dat
+修改配置文件
+一.vim /var/svn/project/conf/svnserve.conf
+anon-access = none   //19行，匿名无任何权限
+auth-access = write   //20行，有效账户可写
+password-db = passwd  //27行，密码文件
+authz-db = authz  //34行，ACL访问控制列表文件
+二. vim /var/svn/project/conf/passwd 
+[users]
+harry = 123456 //用户名和密码
+tom = 123456  //用户名和密码
+三.[root@web1 ~]# cat /var/svn/project/conf/authz 
+[/]                                //定义ACL访问控制
+harry = rw                        //用户对项目根路径可读可写
+tom = rw
+启动服务（默认端口3690）
+[root@web1 ~]# svnserve -d  -r /var/svn/project
+[root@web1 ~]# netstat -nutlp |grep svnserve
+tcp        0      0 0.0.0.0:3690    0.0.0.0:*    LISTEN      4043/svnserve
+
+客户端用户（file:///  http:/// https:// svn:// svn+ssh:// 有5种方式连）
+连接 svn co svn://192.168.11/ code
+更新svn update
+上传svn ci -m ".*"  
+增删文件svn {add,del,rm}   文件名
+
+新建文件是更新无到，但要，
+更新时svn ci -m "1"  基中双引号内内容可随便写
+修改在SVN库里的文件，更新才更新版本号成功
+
+svn info svn://192.168.1.1
+svn log svn://192.168.1.1
+
+修改文件后（未提交）
+svn diff  看查所有文件的不同处
+svn diff user.txt  查看单个文件不同处
+svn revert user.txt 还原修改前的内容
+
++++++++++++++++++++++++++++++++
+制定RPM包(这里是nginx的)
+~]# yum -y install rpm-build
+生成rpmbuild目录结构
+~]# ls
+nginx-1.12.2.tar.gz
+~]# rpmbuild -ba nginx  //rpmbuild -ba后随便输写
+错误：stat /root/nginx 失败：没有那个文件或目录
+~]# ls  //由上条命令自动生成rpmbuild了
+nginx-1.12.2.tar.gz  rpmbuild
+ ~]# ls rpmbuild/
+BUILD  BUILDROOT  RPMS  SOURCES  SPECS  SRPMS
+准备工作，将源码软件复制到SOURCES目录
+~]# cp nginx-1.12.2.tar.gz /root/rpmbuild/SOURCES
+创建并修改SPEC配置文件
+~]# ls rpmbuild/SPECS/ -->空
+vim rpmbuild/SPECS/nginx.spec  //新创文件格式后缀是.spec的才以下的文件格式
+Name:nginx        
+Version:1.12.2
+Release:    10
+Summary: Nginx is a web server software.    
+License:GPL    
+URL:    www.test.com    
+Source0:nginx-1.12.2.tar.gz
+#BuildRequires:    
+#Requires:    
+%description
+nginx [engine x] is an HTTP and reverse proxy server.
+%prep
+%setup –q   //自动解压源码包，并cd进入目录
+%build
+./configure
+make %{?_smp_mflags}
+%install
+make install DESTDIR=%{buildroot}
+cp /root/rpmbuild/SPECS/nginx.sh %{buildroot}/usr/local/nginx/    
+##注意，cp非必须操作，注意，这里是将一个脚本拷贝到安装目录，必须提前准备该文件
+%files
+%doc
+/usr/local/nginx/*  //对哪些文件与目录打包
+%changelog
+保存退出
+装源码包的依赖包
+~]# yum -y install gcc pcre-devel zlib-devel openssl-devel
+rpmbuild创建RPM软件包
+~]#rpmbuild -ba /root/rpmbuild/SPECS/nginx.spec  //这过程就是源码编译的过程
+~]# ls /root/rpmbuild/RPMS/x86_64/nginx-1.12.2-10.x86_64.rpm
+~]# rpm -qpi RPMS/x86_64/nginx-1.12.2-10.x86_64.rpm
+
+~]#rpm -ivh RPMS/x86_64/nginx-1.12.2-10.x86_64.rpm 
+~]# rpm -qa |grep nginx
+~]# /usr/local/nginx/sbin/nginx
+~]# curl http://127.0.0.1/
+
+
++++++++++++++++++++++++++++++++
+Github
+
+
+
+
+++++++++++++
+chage命令详解
+https://blog.csdn.net/Jason_Deng_2017/article/details/78181153
+
+
+
+

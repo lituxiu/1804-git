@@ -1,0 +1,113 @@
+问题一
+mysql> create table t1(id int(1)primary key auto_increment,name char(10));
+ERROR 1813 (HY000): Tablespace '`db3`.`t1`' exists.
+
+[root@host50 db3]# ls
+db.opt  t1.ibd
+
+mysql> drop database db3;
+ERROR 1010 (HY000): Error dropping database (can't rmdir './db3', errno: 39)
+后手动删除再创db3库(在mysql里查看db3库是没内容，到/var/lib/mysql/db3下有个
+t1.ibd）
+
+mysql> create table db3.t1(id int(1) primary key auto_increment, name char(10));
+ERROR 1030 (HY000): Got error 168 from storage engine
+（没有t1表的存在创不了，创其除了“t1”外其他表名就可以）
+
+mysql> use db1;
+Database changed
+mysql> show tables;
+Empty set (0.00 sec)
+
+mysql> create table t1(id int);
+ERROR 1050 (42S01): Table '`db1`.`t1`' already exists
+
+[root@host50 db1]# ls
+db.opt  t1.ibd
+(再重新建一个库再建t1表，建t1表不成功，去看db1库下自动有t1.ibd文件了)
+
+!!!!!!!!!!!解决方法
+     先在/var/lib/mysql/db3下把t1.ibd手动删除，再在mysql里drop掉db3库就再创建没问题了
+
+问题二、
+mysql> grant replication slave on *.* to repluser@'192.168.4.52' identified by '123456';这里面的repluser用户的作用是什么？除了用它配置从库内容后，用他查看主库的东西是查看不了。
+
+问题三、（解决） 登录时加－A
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+
+
+问题四、（重新删掉后再创也一样，但在其他从库可以desc表？）
+主库卡很久，且出现问题
+mysql> desc bbsdb.a;
+ERROR 2013 (HY000): Lost connection to MySQL server during query
+但从库打这命令很快看到不卡
+
+invalid    n.病人a无效的
+*[in'vælid]
+
+select name from user where sex="gril" and uid=(select max(uid) from user);
+select name from user where sex="gril" order by uid desc limit1;
+
+mysqldump 完全备份 锁表（写） 
+binlog日志  增量备份
+（重要）percona软件 提供 innobackupex命令 能完全备份或增量备份
+
+show variables like "%password%";
+ validate_password_policy=0
+ validate_password_length=6 
+
+
+incorrect
+declare
+
+重装mysql
+ERROR 2002 (HY000): Can't connect to local MySQL server through socket '/tmp/mysql.sock' (2)
+解决mysql -uroot -p'R%N9xMLn!6Yg' -S /var/lib/mysql/mysql.sock
+https://blog.csdn.net/hjf161105/article/details/78850658
+
+问题rm -rf /etc/my.cnf /var/lib/mysql再装有冲突，就要
+yum -y remove mysql
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+nosql
+mongodb问题
+# mongod -f /usr/local/mongodb/etc/mongodb.conf
+about to fork child process, waiting until server is ready for connections.
+forked process: 1907
+ERROR: child process failed, exited with error number 1
+解决方法:
+删除mongodb 的db目录下的mongod.lock文件，重启mongodb即可
+
+
+
++++++++++++++++++++
+mysql集群
+
+问题一:(21主;22,23主从;24,25从库)
+]# masterha_check_repl --conf=/etc/mha_manager/app1.cnf
+Sat Aug  4 09:32:40 2018 - [error][/usr/local/share/perl5/MHA/ManagerUtil.pm, ln122] Got error when getting node version. Error:
+Sat Aug  4 09:32:40 2018 - [error][/usr/local/share/perl5/MHA/ManagerUtil.pm, ln123] 
+bash: apply_diff_relay_logs: command not found
+Sat Aug  4 09:32:40 2018 - [error][/usr/local/share/perl5/MHA/ManagerUtil.pm, ln150] node version on 192.168.4.24 not found! Is MHA Node package installed ?
+原因:查看集群中有某台主机未安装mha_node软件 
+
+问题二
+Last_IO_Error: Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
+原因:
+1.先查主从机子的server_id和uuid是否相同
+查看uuid方法 show variables like "%uuid%";或cat /var/lib/mysql/auto.cnf
+查看server_id方法  select @@server_id;或cat /etc/my.cnf/里的server_id=*哪项
+2.(谨记)以上不存在问题的话,就存在当主库down后,恢复添加主机后再change master to master_host=主库ip时,是把主库ip写错也会出现这情况
+
+
+++++++++++++++++++++++++++++++++++++++++++
+企业里的通线到少有2个运营商,电信联通居多,移动一般不选择
+但原不同运营商服务不能互通信,但通过BGP持术可以实现
+
+change master to master_host="192.168.4.21",master_user="a",aster_password="123qqq...A",master_log_file="db21.000004",master_log_pos=474;
+
+
+
+

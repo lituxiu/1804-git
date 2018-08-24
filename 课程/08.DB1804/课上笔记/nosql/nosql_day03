@@ -1,0 +1,232 @@
+18年7月31日
+
+主从复制结构模式
+主从复制工作原理
+(注意:redis主从复制不同mysql,只要从库同步主库,不分时间前后,只会把主库所有的数据全复制过来,而mysql不同步同步前的数据!可能是由于redis是数据临时存在内存中的原因,而mysql是存储在硬盘中)
+默认都是master主机,用命令info replication查看
+一主一从  把52配置为51从库
+(格式1:92.168.4.52:6352> slaveof host port)
+192.168.4.52:6352> slaveof 192.168.4.51 6351
+一主多从与一主一从配置方法一样
+
+主从从(52,53本来是51的从库)
+把53手动切换成主库 slaveof no one
+192.168.4.53:6353> slaveof no one
+192.168.4.53:6353> info replication
+把53配置成52的从库
+192.168.4.53:6353> slaveof 192.168.4.52 6352
+配置命令行配置马上生效 不需要重启服务(一旦重启服务失效)再去看53和53的info replication ----->role(角色):master
+
+修改配置文件,永久有效,但需要重启服务才能生效 
+53 ~]# /etc/init.d/redis_6379 stop
+53 ~]# vim /etc/redis/6379.conf
+ 282 slaveof 192.168.4.52 6352
+:wq
+53 ~]# /etc/init.d/redis_6379 start
+53 ~]# redis-cli -p 6353 -h 192.168.4.53
+192.168.4.53:6353> info replication
+# Replication
+role:slave
+master_host:192.168.4.52
+master_port:6352
+
+vim /etc/redis/6379.conf
+host51
+501 requirepass 123456
+:wq
+host52
+从库info replication
+master_link_status:down
+282 slaveof 192.168.4.51 6351
+289 masterauth 123456
+:wq
+52的设置完后,直接edis-cli -h 192.168.4.51 -p 6351 连接,不用加-a 123456
+
+(重点)++++++++++++++++++++++
+生产环境中
+哨兵模式  redis-sentinel哨兵程序
+vim /etc/sentinel.conf
+(空白文本)
+sentinel monitor host51 192.168.4.51 6351 1  (1是投票)
+sentinel auth-pass host51 123456  (当主库有连接密码后)
+:wq
+查看哨兵日志
+52 ~]#redis-sentinel /etc/sentinel.conf
+[root@host52 ~]# redis-cli -p 6352 -h 192.168.4.52
+192.168.4.52:6352> info replication
+# Replication
+role:master (52变成了主库了)
+52 ~]# grep "slaveof 192.168.4.51 6351" /etc/redis/6379.conf 52成主库后,自动删除这行
+同时也在host51主机的/etc/redis/6379.conf配置文件最后一行自动添加
+slaveof 192.168.4.52 6352 (设置51为52的从库语句)
+
+问题在以上基础上再在51配sentinel monitor host52 192.168.4.53 6353 1
+多几台都可以设sentinel么?  可以在两台机子互配哨兵配置
+当一台有密码时?
+
+
++++++++++++++++++++++++++++++++++++++++++++
+RDB是redis服务器数据库文件,数据持久化方式之一
+RDB(默认) dump.rdb文件永久存储的  /var/lib/redis/6379/下有dump.rdb
+
+先把服务停了.再去删除,再起服务才生效(因为就算你删,停服务了,自动再把内存数据再写入硬盘存在dump.rdb)
+192.168.4.52:6352> keys *
+1) "name"
+2) "neme"
+# /etc/init.d/redis_6379 stop
+# rm -rf /var/lib/redis/6379/dump.rdb 
+192.168.4.52:6352> keys *
+(empty list or set)52 ~]# /etc/init.d/redis_6379 start
+
+恢复里将快照文件直接读入内存
+53 ~]# scp   /var/lib/redis/6379/dump.rdb  192.168.4.52:/root
+52 ~]# /etc/init.d/redis_6379 stop
+52 ~]# cp dump.rdb /var/lib/redis/6379/
+52 ~]# redis-cli -p 6352 -h 192.168.4.52
+192.168.4.52:6352> keys *
+1) "name"
+2) "neme"
+
+# vim /etc/redis/6379.conf 
+ 254 dbfilename "dump.rdb"  //文件名
+217 #   save ""   //禁用RDB
+219 save 900 1       //900秒内且有1次修改
+ 220 save 300 10     //300秒内且有10次修改
+ 221 save 60 10000   //60秒内且有10000次修改
+验证:先把/var/lib/redis/6379/dump.rdb删除,再建10个不同名字的变量和值
+改220行 save 120 10 就是两分钟内有10次改变就存dump.rdb文件(要到2分钟才存)
+
+马上存盘
+save(阻塞存盘):
+bgsave(不阻塞存盘):这个是比save在客户端防问数据时还可以存盘
+
+
+/etc/init.d/redis_6379 stop
+记住:只要停服务,会自动把内存的数据存储在/var/lib/redis/6379/dump.rdb
+不停服务的话会被内存数据覆盖
+
+RDB
+优点:高性能持久化实现,创建子进程执行持久化
+     比较适合大数据恢复,且对数据完整性要求不是很高
+缺点:意外宕机时,最后一次持久化的数据会丢失
+
++++++++++++++++++++++++++++++++++++++++++++++++
+AOF (每隔一秒记一回,当宕机时,只有最后一秒数据丢失,数据丢失最少,生产中常用,也可以弥补RDB的缺点)
+redis数据类型
+51 ~]# vim /etc/redis/6379.conf
+673 appendonly yes 
+677 appendfilename "appendonly.aof"
+
+优先级:在/var/lib/redis/6379/里如果有appendonly.aof和dump.rdb文件时,优先读取appendonly.aof文件(当appendonly.aof文件有问题了就/etc/init.d/redis_6379服务起不来)
+解决方法:
+cd /var/lib/redis/6379/
+6379]# redis-check-aof --fix appendonly.aof
+     Successfully truncated AOF
+
+问题:/var/run/redis_6379.pid exists, process is already running or crashed(什么情况下会出现这情况,我是在redis-check-aof --fix appendonly.aof还原这一步后出现)
+服务重启和关闭不了,redis-cli连接不上
+主机重启后就解决了,但/etc/redis/6379.conf配置文件初始化到刚安装完的状态
+ 
++++++++++++++++++++++++++++++++++++
+String字符串
+
+字符串
+192.168.4.52:6352> set tel 88888888
+OK
+192.168.4.52:6352> setrange tel 4 ****   (起始值是0,4开始就是第5个字符开始改)
+(integer) 8
+192.168.4.52:6352> get tel
+"8888****"
+
+
+192.168.4.51:6351> set l daxiuge888
+192.168.4.51:6351> exists p
+(integer) 0  (表示p不存在)
+192.168.4.51:6351> exists l
+(integer) 1  (表示l存在)
+192.168.4.51:6351> append l 888
+(integer) 13
+192.168.4.51:6351> get l
+"daxiuge888888"
+
+
+按字节去存储(节省内存,1字节=8位)
+192.168.4.51:6351> setbit yayabaobao 1 1
+(integer) 0
+192.168.4.51:6351> setbit yayabaobao 2 0
+(integer) 0
+192.168.4.51:6351> setbit yayabaobao 3 1
+(integer) 0
+192.168.4.51:6351> setbit yayabaobao 4 1
+(integer) 0
+192.168.4.51:6351> bitcount yayabaobao
+(integer) 3
+
+自减decr(默认自减1)
+192.168.4.51:6351> exists x
+(integer) 0
+192.168.4.51:6351> set x 100
+OK
+192.168.4.51:6351> decr x
+(integer) 99
+192.168.4.51:6351> decr x
+(integer) 98
+192.168.4.51:6351> decr x
+(integer) 97
+192.168.4.51:6351> decr x
+(integer) 96
+192.168.4.51:6351> exists y
+(integer) 0
+192.168.4.51:6351> decr y
+(integer) -1
+192.168.4.51:6351> decr y
+(integer) -2
+
+decrby x 20 (自定义x值自减20)
+192.168.4.51:6351> decr x 
+(integer) 84
+192.168.4.51:6351> decrby x  10 
+(integer) 74
+
+自加类型
+192.168.4.51:6351> incr x
+(integer) 33
+192.168.4.51:6351> incr x
+(integer) 34
+自加小数
+192.168.4.51:6351> incr x
+(integer) 35
+192.168.4.51:6351> incrbyfloat x 0.3
+"35.3"
+192.168.4.51:6351> incrbyfloat x 0.9
+"36.2"
+
+mset定义多个变量值,mget显示多个变量值
+192.168.4.51:6351> mset j 10 k 20
+OK
+192.168.4.51:6351> mget j k
+1) "10"
+2) "20"
+
+
+取字符串取值范围 getrange (0代表第一个,-1代表倒数第一个)
+192.168.4.51:6351> set name abcdefg
+OK
+192.168.4.51:6351> getrange name 0 2
+"abc"
+192.168.4.51:6351> getrange name 0 -1
+"abcdefg"
+
+
+
+
+
+
+
+
+
+
+
+
+
+

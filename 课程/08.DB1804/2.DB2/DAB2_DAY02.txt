@@ -1,0 +1,243 @@
+MySQL主从同步常用配置选项：
+]#vim /etc/my.cnf
+[mysqld]
+....
+:wq
+]#  systemctl  restart  mysqld
+
+master选项
+binlog_do_db=库名列表    //只允许同步的库                    
+binlog_ignore_db=库名列表   //只不允许同步的库
+                                
+slave  选项
+slave_log_updates 级联复制 （主从从）
+replicate_do_db=库名列表    //只同步的库                      
+replicate_ignore_db=库名列表    //只不同步的库
+ +++++++++++++++++++++++++++ 
+3.2主从同步复制模式
+3.2主从同步复制模式
+
+
+启用半同步复制模式
+
+
+
+master：
+
+SELECT  PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS  WHERE PLUGIN_NAME  LIKE '%semi%';  
+
+INSTALL  PLUGIN  rpl_semi_sync_master   
+SONAME   'semisync_master.so';
+  
+SET GLOBAL rpl_semi_sync_master_enabled = 1;
+show  variables  like  'rpl_semi_sync_%_enabled'; 	 
+
+slave:
+ INSTALL PLUGIN rpl_semi_sync_slave
+SONAME  'semisync_slave.so';
+
+SELECT  PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS  WHERE PLUGIN_NAME  LIKE '%semi%';  
+
+mysql>SET  GLOBAL  rpl_semi_sync_slave_enabled = 1;
+mysql>show  variables  like  'rpl_semi_sync_%_enabled'
+
+休息到 11:10
+55
+vim /etc/my.cnf
+[mysqld]
+plugin-load = "rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
+rpl_semi_sync_master_enabled=1
+rpl_semi_sync_slave_enabled=1
+:wq
+]# scqld
+mysql> show  variables  like  'rpl_semi_sync_%_enabled';
+++++++++++++++++++++++++++++++
+DBA2_DAY02
+MySQL数据读写分离
+MySQL多实例 
+MySQL优化
+
+]#mysql  -h主库ip  -uadmin  -p123456
+                   51
+mysql> select   * from t1;  查询数据 （读）
+mysql>  insert into  t1 values(11); 存储数据（写）
+
+
+MySQL数据读写分离: 把客户端查询数据库的请求和写入数据的请求，分别给不同的数据库服务器处理。
+
+
+MySQL数据读写分离结构的目的： 减轻主库的并发访问压力，提高从库的硬件利用率。
+
+部署MySQL数据读写分离：
+人肉分类：需要程序员协同完成，规定程序在存储数据时连接master数据库服务。查询数据时连接slave数据库服务。
+
+部署实现数据读写分离服务实现： MySQL中间件
+                                                 mycat    mysql-proxy   maxscale
+
+
+配置数据读写分离服务：
+1 部署MySQL主从同步结构（一主（51）一从（52））
+mysql>change master to  master_host="192.168.4.51",master_user="repluser",master_password="123qqq...A",master_log_file="db51.000001",master_log_pos=441;
+mysql> start  slave;
+
+2测试主从同步配置
+2.1  在主库给客户端授权存储数据时，连接服务器的用户密码密码
+mysql>create  database  testdb;
+mysql>create table  testdb.t1(id int);
+mysql>grant  select ,insert  on   testdb.*  to   yaya99@"%"  identified by "123qqq...A";
+
+2.2  在客户端50连接主库存储数据
+mysql    -h192.168.4.51  -uyaya99  -p123qqq...A
+mysql>  insert into  testdb.t1  values(888);
+mysql>  select  * from  testdb.t1;
+
+2.3  在从库本机查看 是否同步主库的设置
+select  * from testdb.t1;
+select user from mysql.user where user="yaya99";
+select  * from  testdb.t1;
+
+3 配置读写分离服务器56
+装包
+]# rpm -ivh maxscale-2.1.2-1.rhel.7.x86_64.rpm
+
+修改配置文件
+]# cp /etc/maxscale.cnf   /etc/maxscale.cnf.bak
+
+vim   /etc/maxscale.cnf
+[maxscale]
+[server数字]
+[MySQL Monitor]
+[Read-Write Service]
+[MaxAdmin Service]
+[Read-Write Listener]
+[MaxAdmin Listener]
+
+
+在数据库服务器上 根据配置文件的设置添加对应的授权用户 
+mysql>grant replication slave, replication client on *.* to scalemon@'%'  identified by  '123qqq...A'; 
+
+mysql> grant select on mysql.* to maxscale@"%" identified by  '123qqq...A';
+
+mysql> select  user from mysql.user  where  user  in ("scalemon","maxscale"); 
+
+在服务56主机上测试授权用户
+]# which  mysql
+]# yum  -y  install mariadb
+]# mysql  -h192.168.4.51  -uscalemon  -p123qqq...A
+]# mysql  -h192.168.4.52  -uscalemon  -p123qqq...A
+]# mysql  -h192.168.4.51  -umaxscale   -p123qqq...A
+]# mysql  -h192.168.4.52  -umaxscale   -p123qqq...A
+
+启动服务
+]# maxscale  -f /etc/maxscale.cnf
+
+]# pkill  -9 maxscale   //停止服务
+
+查看服务信息
+[root@host56 ~]# ps -C maxscale
+  PID TTY          TIME CMD
+25957 ?        00:00:00 maxscale
+
+[root@host56 ~]# netstat -utnlp | grep -i  maxscale
+tcp6       0      0 :::4016                 :::*                    LISTEN      25957/maxscale
+      
+tcp6       0      0 :::4006                 :::*                    LISTEN      25957/maxscale      
+
+
+
+
+4 测试读写分离服务器的配置
+4.1 在56本机访问管理服务，查看监控信息
+[root@host56 ~]# maxadmin  -uadmin  -pmariadb  -P4016
+MaxScale>list  servers
+Servers.
+-------------------+-----------------+-------+-------------+--------------------
+Server             | Address         | Port  | Connections | Status              
+-------------------+-----------------+-------+-------------+--------------------
+server1            | 192.168.4.51    |  3306 |           0 | Master, Running
+server2            | 192.168.4.52    |  3306 |           0 | Slave, Running
+-------------------+-----------------+-------+-------------+--------------------
+
+
+4.2在客户端 连接56 主机，测试其读写分离配置
+50]# mysql -h192.168.4.56 -P4006 -uyaya99 -p123qqq...A
+mysql>  select  * from testdb.t1;  
+mysql>  insert into  testdb.t1 values(999) ;
+
+++++++++++++++++++++++++++++++++++++++++++++
+
+MySQL多实例：在一台 物理主机上运行多个mysql数据库服务。
+
+为什么要配置多实例服务：
+
+配置多实例服务192.168.4.50
+  663  rpm  -qa  | grep  -i mysql
+  664  systemctl  stop mysqld
+  666  systemctl  disable mysqld
+
+装包
+]# tar -zxvf mysql-5.7.20-linux-glibc2.12-x86_64.tar.gz
+]# mv mysql-5.7.20-linux-glibc2.12-x86_64  /usr/local/mysql
+
+]# vim  /etc/profile
+export PATH=/usr/local/mysql/bin:$PATH
+:wq
+]# source  /etc/profile
+]# echo  $PATH
+
+创建主配置文件
+]# mv /etc/my.cnf  /etc/my.cnf.bak
+]# vim /etc/my.cnf 
+[mysqld_multi]
+mysqld = /usr/local/mysql/bin/mysqld_safe
+mysqladmin = /usr/local/mysql/bin/mysqladmin
+user = root
+
+[mysqld1]
+port           = 3307  	
+datadir = /data3307 	
+socket  = /data3307/mysql.sock   	
+pid-file =  /data3307/mysqld.pid    	
+log-error = /data3307/mysqld.err 
+
+[mysqld2]
+port           = 3308  	
+datadir = /data3308 	
+socket  = /data3308/mysql.sock   	
+pid-file =  /data3308/mysqld.pid    	
+log-error = /data3308/mysqld.err 
+:wq
+
+]#mkdir   /data3307
+]#mkdir   /data3308
+
+初始化授权库
+]# mysqld  --user=mysql  --basedir=/usr/local/mysql --datadir=/data3307   --initialize  
+2018-07-21T09:55:03.752482Z 1 [Note] A temporary password is generated for root@localhost: lfy9t&_mondL	
+
+]# ls /data3307 
+
+]#mysqld  --user=mysql  --basedir=/usr/local/mysql --datadir=/data3308   --initialize 
+
+2018-07-21T09:57:54.500857Z 1 [Note] A temporary password is generated for root@localhost: (:sKl_<?#3py
+]# ls /data3300
+
+启动服务
+测试配置
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

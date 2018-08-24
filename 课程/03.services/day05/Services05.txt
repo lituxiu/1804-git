@@ -1,0 +1,213 @@
+######################################################
+利用真机clone-vm7产生产两台虚拟机，利用root密码123456
+
+1.搭建虚拟机A服务端
+   要求：配置永久主机名svr7.tedu.cn
+	     配置eth0永久 IP地址：192.168.4.7/24
+             使用真机Web服务器作为Yum源
+
+2.搭建虚拟机B客户端
+   要求：配置永久主机名pc207.tedu.cn
+	     配置eth0永久 IP地址：192.168.4.207/24
+             使用真机Web服务器作为Yum源
+
+#######################################################
+rsync同步操作,让两个目录内容一致
+
+• 命令用法
+– rsync [选项...] 源目录 目标目录
+
+• 同步与复制的差异
+– 复制:完全拷贝源到目标
+– 同步:增量拷贝,只传输变化过的数据
+
+
+• 本地同步
+– rsync [选项...] 本地目录1 本地目录2
+– rsync [选项...] 本地目录1/ 本地目录2
+[root@svr7 ~]# mkdir /todir
+[root@svr7 ~]# rsync -a /boot /todir   //同步整个文件夹
+[root@svr7 ~]# rsync -a /boot/ /todir  //只同步目录下的数据
+
+• rsync操作选项
+– -n:测试同步过程,不做实际修改
+– --delete:删除目标文件夹内多余的文档
+– -a:归档模式,相当于-rlptgoD
+– -v:显示详细操作信息
+– -z:传输过程中启用压缩/解压
+
+[root@svr7 ~]# mkdir /todir
+[root@svr7 ~]# mkdir /nsd
+
+[root@svr7 ~]# touch /nsd/1.txt
+[root@svr7 ~]# touch /nsd/2.txt
+[root@svr7 ~]# cp /etc/passwd /nsd
+[root@svr7 ~]# ls /nsd
+[root@svr7 ~]# rsync -avz /nsd/  /todir
+[root@svr7 ~]# ls /todir
+
+[root@svr7 ~]# echo 123 > /nsd/1.txt
+[root@svr7 ~]# cat /nsd/1.txt 
+
+[root@svr7 ~]# cat /todir/1.txt 
+[root@svr7 ~]# rsync -avz /nsd/  /todir
+
+[root@svr7 ~]# cat /todir/1.txt 
+
+
+
+删除目标多余的文档
+[root@svr7 ~]# rsync -avz --delete /nsd/  /todir/
+
+[root@svr7 ~]# ls /nsd
+[root@svr7 ~]# ls /todir
+
+[root@svr7 ~]# touch /todir/abc.txt
+[root@svr7 ~]# ls /nsd
+[root@svr7 ~]# ls /todir
+
+[root@svr7 ~]# rsync -avz --delete /nsd/  /todir/
+[root@svr7 ~]# ls /nsd
+[root@svr7 ~]# ls /todir
+
+#######################################################
+远程同步
+
+rsync+SSH同步
+
+• 与远程的 SSH目录保持同步
+– 下行:rsync [...]   user@host:远程目录    本地目录
+– 上行:rsync [...]   本地目录       user@host:远程目录
+
+虚拟机A：
+# rsync -avz --delete /opt/  root@192.168.4.207:/opt/
+# ls /opt
+
+虚拟机B：
+# ls /opt
+
+虚拟机A：
+# cp /etc/passwd /opt
+# ls /opt
+# rsync -avz --delete /opt/  root@192.168.4.207:/opt/
+
+虚拟机B：
+# ls /opt
+
+####################################################
+实时同步
+
+一、实现无密码验证
+虚拟机A
+1.完成ssh无密码的验证,采用公钥、私钥
+[root@svr7 ~]# ssh-keygen       #一路回车，产生公钥、私钥
+[root@svr7 ~]# ls /root/.ssh/   #查看公钥、私钥
+[root@svr7 ~]# ssh-copy-id root@192.168.4.207  #传递公钥
+
+虚拟机B
+2.查看公钥
+[root@pc207 ~]# ls /root/.ssh/
+authorized_keys 
+
+虚拟机A
+3.验证无密码登陆
+[root@svr7 ~]# ssh  root@192.168.4.207
+
+二、监控目录变化
+
+inotifywait监控
+• 基本用法
+– inotifywait [选项] 目标文件夹
+
+• 常用命令选项
+– -m,持续监控(捕获一个事件后不退出)
+– -r,递归监控、包括子目录及文件
+– -q,减少屏幕输出信息
+– -e,指定监视的 modify、move、create、delete、
+attrib 等事件类别
+
+真机上操作：
+1.传递tools.tar.gz到虚拟机A/root下
+# scp  /root/桌面/tools.tar.gz       root@192.168.4.7:/
+
+虚拟机A
+2.查看是否传递成功
+# ls  /
+
+3.tar进行解包
+# tar -xf /tools.tar.gz -C /mnt
+# ls /mnt/
+# ls /mnt/tools
+
+4.安装开发工具gcc  make
+5.进行tar解包
+# mkdir /myrpm
+# tar -xf /mnt/tools/inotify-tools-3.13.tar.gz -C /myrpm/
+
+6. 进行 ./configure 进行配置
+[root@svr7 /]# cd /myrpm/inotify-tools-3.13
+[root@svr7 inotify-tools-3.13]# ./configure
+
+7. 进行 make 编译
+[root@svr7 inotify-tools-3.13]# make
+
+8. 进行 make  install 安装
+[root@svr7 inotify-tools-3.13]# make install
+9.验证
+[root@svr7 /]# which inotifywait   #查询命令所对应的程序文件 
+[root@svr7 /]# ls /usr/local/bin/inotifywait 
+
+10. 书写脚本/root/rsync.sh
+
+
+   inotifywait -rq /opt/
+
+
+   rsync -avz --delete /opt/  root@192.168.4.207:/opt/
+
+  非常适合死循环，条件成立，一直循环
+
+    while  [条件]
+     do
+             执行的语句
+     done
+
+[root@svr7 /]# vim /root/rsync.sh
+ #!/bin/bash
+   while    inotifywait -rqq /opt/
+   do
+      rsync -az --delete /opt/  root@192.168.4.207:/opt/
+   done  &
+
+[root@svr7 /]# /root/rsync.sh 
+[root@svr7 /]# ps aux | grep rsync.sh
+
+[root@svr7 /]# killall rsync.sh
+
+######################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

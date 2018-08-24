@@ -1,0 +1,387 @@
+﻿
+还原三台虚拟机classroom server  desktop
+[root@server0 ~]# rht-vmctl  reset classroom
+[root@server0 ~]# rht-vmctl  reset server
+[root@server0 ~]# rht-vmctl  reset desktop
+
+虚拟机server0
+[root@server0 ~]# firewall-cmd --set-default-zone=trusted 
+
+虚拟机desktop0
+[root@desktop0 ~]# firewall-cmd --set-default-zone=trusted
+
+####################################################
+Samba服务基础，配置SMB共享（跨平台的共享：Windows 与 Linux）
+
+• Samba 软件项目
+– 用途:为客户机提供共享使用的文件夹
+– 协议:SMB(TCP 139)、CIFS(TCP 445)
+
+• 所需软件包:samba
+• 系统服务:smb
+
+
+
+管理共享账号
+• Samba用户 —— 专用来访问共享文件夹的用户
+– 采用独立设置的密码
+– 但需要提前建立同名的系统用户(可以不设密码)
+
+• 使用 pdbedit 管理工具
+– 添加用户:pdbedit -a 用户名
+– 查询用户:pdbedit -L [用户名]
+– 删除用户:pdbedit -x 用户名
+
+
+• 修改 /etc/samba/smb.conf
+
+[自定共享名]
+path = 文件夹绝对路径
+; public = no|yes //默认no
+; browseable = yes|no //默认yes
+; read only = yes|no //默认yes
+; write list = 用户1 .. .. //默认无
+; valid users = 用户1 .. .. //默认任何用户
+; hosts allow = 客户机地址 .. ..
+; hosts deny = 客户机地址 .. ..
+
+服务端虚拟机Server0：
+ 1.安装samba软件
+ 2.创建Samba共享帐号
+[root@server0 ~]# useradd harry
+[root@server0 ~]# useradd kenji
+[root@server0 ~]# useradd chihiro
+[root@server0 ~]# pdbedit -a harry     #添加为Samba帐号
+[root@server0 ~]# pdbedit -a kenji     #添加为Samba帐号
+[root@server0 ~]# pdbedit -a chihiro   #添加为Samba帐号
+
+[root@server0 ~]# pdbedit -L           #查看Samba帐号 
+
+3.创建共享目录
+[root@server0 ~]# mkdir /common
+[root@server0 ~]# echo 123 > /common/1.txt
+
+4.修改配置文件/etc/samba/smb.conf
+
+ 补充vim 命令模式：/workgroup   #全文查找workgroup 按n跳转
+                              按G可以直接到全文的最后 ,建议再文件最后加入内容        
+
+    workgroup = STAFF        #设置工作组
+
+	[common]                 #共享名
+	path  =  /common         #共享实际路径
+
+5.重起smb服务,设置smb服务为开机自启动
+
+6.修改SELinux策略，布尔值（功能的开关）
+ – 需要加 -P 选项才能实现永久设置
+ 查看布尔值
+[root@server0 ~]# getsebool -a | grep samba
+ 修改布尔值
+[root@server0 ~]# setsebool samba_export_all_ro on
+[root@server0 ~]# getsebool -a | grep samba
+
+客户端虚拟机Desktop0：
+1. 安装客户端软件samba-client
+2. 利用命令访问
+[root@desktop0 ~]# smbclient -L 172.25.0.11
+Enter root's password: 
+
+[root@desktop0 ~]# smbclient -U harry //172.25.0.11/common
+Enter harry's password: 
+Domain=[STAFF] OS=[Unix] Server=[Samba 4.1.1]
+smb: \> 
+
+#####################################################
+客户端访问服务端资源：
+1.防火墙
+2.服务本身的访问控制
+3.SELinux策略
+4.本地目录的权限（本地的权限）
+
+
+#####################################################
+更加科学的访问方式mount挂载
+客户端：虚拟机desktop0
+
+1.安装一个可以支持挂载smb资源的软件,所需软件包:cifs-utils
+# yum -y install cifs-utils
+# mkdir /mnt/test
+# mount -o user=harry,pass=123 //172.25.0.11/common /mnt/test
+
+# ls /mnt/test
+# df -h    #查看挂载情况
+ 
+2.开机自动挂载/etc/fstab
+
+ _netdev:声明网络设备
+       再开机启动时，首先开启网络服务后，再进行挂载本设备
+
+//172.25.0.11/common  /mnt/test    cifs defaults,user=harry,pass=123,_netdev 0 0
+
+[root@desktop0 ~]# umount /mnt/test/   #卸载设备
+[root@desktop0 ~]# df -h
+[root@desktop0 ~]# mount -a   #验证是否书写正确，进行挂载
+[root@desktop0 ~]# df -h
+
+######################################################
+读写的Samba共享
+
+虚拟机Server0:
+1.创建共享目录
+[root@server0 ~]# mkdir /devops
+[root@server0 ~]# echo redhat > /devops/a.txt
+
+2.修改/etc/samba/smb.conf
+
+[devops]
+path = /devops
+write list = chihiro
+
+3.重起smb服务
+
+4.修改SELinux策略
+[root@server0 ~]# getsebool -a | grep samba
+[root@server0 ~]# setsebool samba_export_all_rw on
+[root@server0 ~]# getsebool -a | grep samba
+
+5.修改本地权限
+[root@server0 ~]# setfacl -m  u:chihiro:rwx /devops/
+[root@server0 ~]# getfacl /devops/
+
+虚拟机Desktop0：
+
+ No such file or directory:没找到文件或目录
+
+1.开机自动挂载：
+
+//172.25.0.11/devops /mnt/nsd  cifs defaults,user=chihiro,pass=123,_netdev 0 0
+
+2.利用 mount  -a 进行测试挂载
+
+####################################################
+multiuser机制,为所有普通用户设计
+
+作用：
+  客户端挂载时，以权限较小的用户认证。必要时，可以通过指令进行用户身份的切换
+
+• mount.cifs 的挂载参数
+– multiuser,提供对客户端多个用户身份的区分支持
+– sec=ntlmssp,提供NT局域网管理安全支持
+
+• 使用 cifscreds 提交新的用户凭据并测试
+– cifscreds add|update -u 共享用户名 服务器地址
+
+[student@desktop0 nsd]$ cifscreds add -u chihiro 172.25.0.11
+
+########################################################
+
+NFS共享概述 (Linux与Linux)
+• Network File System,网络文件系统
+– 用途:为客户机提供共享使用的文件夹
+– 协议:NFS(TCP/UDP 2049)、RPC(TCP/UDP 111)
+
+• 所需软件包:nfs-utils
+• 系统服务:nfs-server
+• 修改 /etc/exports
+– 文件夹路径    客户机地址(权限)
+
+ 只读 的NFS共享
+虚拟机Server0：
+1.安装nfs-utils包
+2.创建共享目录
+[root@server0 ~]# mkdir /public
+[root@server0 ~]# echo 123 > /public/123.txt
+
+3.修改配置文件/etc/exports
+/public         *(ro)
+共享路径                所有人(只读访问)
+
+4.重起nfs-server服务
+[root@server0 ~]# systemctl restart nfs-server
+[root@server0 ~]# systemctl enable nfs-server
+
+客户端访问：虚拟机Desktop0
+
+  does not exist:不存在
+
+[root@desktop0 /]# mkdir /mnt/nfsmount
+[root@desktop0 /]# vim /etc/fstab
+
+172.25.0.11:/public /mnt/nfsmount nfs defaults,_netdev 0 0
+
+[root@desktop0 /]# mount -a
+[root@desktop0 /]# df -h
+
+#####################################################
+什么是交换空间
+• 相当于虚拟内存
+– 当物理内存不够用时,使用磁盘空间来模拟内存
+– 在一定程度上缓解内存不足的问题
+– 交换分区:以空闲分区充当的交换空间
+
+
+
+虚拟机Server
+1.划分新的分区
+    fdisk /dev/vdb 划分两个主分区，大小为2G与5G
+
+2.添加交换空间
+[root@server0 ~]# swapon -s         #查看Swap空间组成 成员
+[root@server0 ~]# mkswap /dev/vdb1  #格式化交换文件系统
+[root@server0 ~]# swapon /dev/vdb1  #启用Swap空间 成员
+[root@server0 ~]# swapon -s  
+
+[root@server0 ~]# mkswap /dev/vdb2
+[root@server0 ~]# swapon /dev/vdb2
+[root@server0 ~]# swapon -s 
+[root@server0 ~]# swapoff /dev/vdb2
+[root@server0 ~]# swapon -s
+
+3.完成开机自动启用
+[root@server0 ~]# vim  /etc/fstab
+/dev/vdb1   swap    swap  defaults 0 0
+/dev/vdb2   swap    swap  defaults 0 0
+
+[root@server0 ~]# swapon  -a  #开机检测swap分区的命令
+[root@server0 ~]# swapon  -s
+
+########################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
