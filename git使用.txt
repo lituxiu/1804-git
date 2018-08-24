@@ -78,6 +78,9 @@ fatal: The remote end hung up unexpectedl
 [core]
 compression = -1
 
+问题二
+error: RPC failed; result=55, HTTP code = 200
+原因可能是由于网络不好,再git push origin master解决
 
 
 ＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋

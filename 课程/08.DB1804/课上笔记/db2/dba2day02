@@ -1,0 +1,294 @@
+2018年7月21日
+(前提：slave要与master库的数据一致，但各库用户授权情况可不一致)
+配置主库master
+   启binlog日志（必需要指定server_id）
+   用户授权 grant   (grant replication slave on 后才会有master状态)注意不能指某库的所有表db1.*，最好是*.*
+   查看binlog日志信息
+   查看master状态   （要用户授权后才有状态可看）
+
+slave
+   指定server_id
+   测试主库用户授权
+   管理员登陆指定主库信息 change
+   查看slave状态
+
+mysql主从同步模式
+一主一从
+一主多从
+主从从  log_slave_updates 级联复制（用于主从从的第一台从库配置）
+
+（注意生产环境都是同步所有库的，要了解这功能）
+master选项
+binlog_do_db=库名列表  （只允许同步的库）
+binlog_ignore_db=库名列表（不允许同步的库）
+slave选项
+log_slave_updates 级联复制 （要不主从从最后一台机同步不了）
+replicate_do_db=库名列表 //只同步的库
+replicate_ignore_db=库名列表 //只不同步的库
+
+复制模式
+同步：慢，保证每个数据
+半同步：只要有一个同步完成就行，介于同步于异步之间（保证有一个从库把主库数据备份了）
+异步：好处是客户端响快，但不保障数据是否稳定传给从库
+
+启用半同步复制模式
+（要开启允许动态加载模块）
+mysql> show variables like 'have_dynamic_loading';（查看是否开启）
++----------------------+-------+
+| Variable_name        | Value |
++----------------------+-------+
+| have_dynamic_loading | YES   |
+
+master
+mysql> install plugin rpl_semi_sync_master soname 'semisync_master.so';(命令装载插件)
+mysql> select plugin_name,plugin_status from information_schema.plugins where plugin_name like '%semi%';
++----------------------+---------------+
+| plugin_name          | plugin_status |
++----------------------+---------------+
+| rpl_semi_sync_master | ACTIVE        |
++----------------------+---------------+
+mysql> set global rpl_semi_sync_master_enabled=1;
+mysql> set global rpl_semi_sync_slave_enabled=1;
+mysql> show variables like 'rpl_semi_sync_%_enabled';
++------------------------------+-------+
+| Variable_name                | Value |
++------------------------------+-------+
+| rpl_semi_sync_master_enabled | ON    |
+| rpl_semi_sync_slave_enabled  | ON    |
++------------------------------+-------+
+
+
+slave
+mysql> install plugin rpl_semi_sync_slave soname 'semisync_slave.so';
+mysql> select plugin_name,plugin_status from information_schema.plugins where plugin_name like '%semi%';
++---------------------+---------------+
+| plugin_name         | plugin_status |
++---------------------+---------------+
+| rpl_semi_sync_slave | ACTIVE        |
++---------------------+---------------+
+
+以上是临时配的，以下配永久的
+[mysql]
+主库
+plugin-load="rpl_semi_sync_master=semisync_master.so"
+rpl_semi_sync_master_enabled=1
+从库
+plugin-load="rpl_semi_sync_slave=semisync_slave.so"
+rpl_semi_sync_slave_enabled=1
+
+同一个配置里只能这样写（要不会报错起不了mysqld）
+plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+MBA2_DAY02
+mysql数据读写分离
+mysql多实例
+mysql优化
+
+一、mysql数据读写分离：把客户端查询数据库的请求和写入数据的请求，分别给不同的数据库服务器处理
+1.减轻主库的并发量（压力）   2.充分利用硬件资源
+
+环境 4台机器  50客51主52从56代理
+
+部署mysql数据库读写分离
+人肉分类：需要程序员协同完成。规定程序在存储数据时连接master数据库服务。查询数据时连接slave数据库服务
+
+部署实现数据读写分离服务实现：mysql中间件
+mycal
+
+2.1先测试主从功能是否正常
+host50：
+mysql -ukaka -p123qqq...A -h192.168.4.56
+mysql> select * from zzz.z1; ------>host52
+mysql> insert into zzz.z1 values(888);------->host51
+
+
+3.配置读写分离服务器host56
+装包
+[root@host56 ~]# rpm -ivh maxscale-2.1.2-1.rhel.7.x86_64.rpm 
+警告：maxscale-2.1.2-1.rhel.7.x86_64.rpm: 头V4 RSA/SHA1 Signature, 密钥 ID 8167ee24: NOKEY
+[root@host56 ~]# rpm -qa | grep maxscale
+maxscale-2.1.2-1.x86_64
+[root@host56 ~]# rpm -qc maxscale
+/etc/maxscale.cnf.template
+[root@host56 ~]# ls /etc/maxscale.cnf
+/etc/maxscale.cnf
+[root@host56 ~]# cp /etc/maxscale.cnf /etc/maxscale.cnf.bak
+
+修改配置文件
+vim /etc/maxscale.cnf
+ 9 [maxscale]
+ 10 threads=auto
+
+ 18 [server1]
+ 19 type=server
+ 20 address=192.168.4.51
+ 21 port=3306
+ 22 protocol=MySQLBackend
+
+ 24 [server2]
+ 25 type=server
+ 26 address=192.168.4.52
+ 27 port=3306
+ 28 protocol=MySQLBackend
+
+ 36 [MySQL Monitor]
+ 37 type=monitor
+ 38 module=mysqlmon
+ 39 servers=server1, server2  //逗号后记得加空格
+ 40 user=scalemon
+ 41 passwd=123qqq...A
+ 42 monitor_interval=10000  //1万毫秒就是10秒
+
+[Read-Write Service]
+type=service
+router=readwritesplit
+servers=server1, server2
+user=maxscale
+passwd=123qqq...A
+max_slave_connections=100%
+
+[Read-Write Listener]
+type=listener
+service=Read-Write Service
+protocol=MySQLClient
+port=4006
+
+[MaxAdmin Listener]
+type=listener
+service=MaxAdmin Service
+protocol=maxscaled
+socket=default
+port=4016
+
+在host51授权用户（host52会同步）
+mysql> grant replication slave,replication client on *.* to scalemon@'%' identified by '123qqq...A';   //添加监控用户scalemon
+mysql> grant select on mysql.* to maxscale@'%' identified by '123qqq...A';    //创建路由用户
+
+[root@host56 ~]# sed -i '/^#/d' /etc/maxscale.cnf
+
+11211 memcache端口   （1024－65536）
+
+测试授权用户
+[root@host56 ~]# mysql -umaxscale -p123qqq...A -h192.168.4.51
+[root@host56 ~]# mysql -umaxscale -p123qqq...A -h192.168.4.52
+[root@host56 ~]# mysql -uscalemon -p123qqq...A -h192.168.4.51
+[root@host56 ~]# mysql -uscalemon -p123qqq...A -h192.168.4.52
+
+启动服务
+[root@host56 ~]# maxscale -f /etc/maxscale.cnf
+[root@host56 ~]# ss -antupl | grep -i maxscale  要看到有4016和4006端
+
+停止服务
+[root@host56 ~]# ps -C maxscale
+  PID TTY          TIME CMD
+ 4653 ?        00:00:00 maxscale
+[root@host56 ~]# pkill -9 maxscale
+[root@host56 ~]# ps -C maxscale
+  PID TTY          TIME CMD
+
+4测试读写分离服务器的配置
+4.1在56本机
+
+[root@host56 ~]# maxadmin -uadmin -pmariadb -P4016
+MaxScale> list servers
+-------------------+-----------------+-------+-------------+--------------------
+Server             | Address         | Port  | Connections | Status              
+-------------------+-----------------+-------+-------------+--------------------
+server1            | 192.168.4.51    |  3306 |           0 | Master, Running
+server2            | 192.168.4.52    |  3306 |           0 | Slave, Running
+-------------------+-----------------+-------+-------------+--------------------
+MaxScale> exit (以上显示正常就退出)
+
+4.2测试host50能否连得上host56的端口（要能连上）
+[root@host50 ~]# mysql -uqq1 -p123qqq...A -h192.168.4.56 -P4006  (qq1用户不是主从授权用户，是普通insert,select权限用户)
+
+
+52只读 在52insert新内容，在51看不到，在客户机50用qq1可看到。
+51只写 在50insert新内容，看到51和52都更新了，证明是51只写52才同步；如果52只写的话就51是不能同步的。
+
+
+（缺点）单点故障 （mysql高可用集群可解决）
+当从库down后，读写都在主库上进行
+当主库down后，[root@host50 ~]# mysql -uqq1 -p123qqq...A -h192.168.4.56 -P4006也登录不了，读写分离进行不了
+
+zabbix(读zhabis)
+
+
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+MYSQL多实例
+    在一台物理服务器上运行多个mysql数据库服务，一个数据库服务被称为一个服务。
+为什么配置多实例
+
+[root@host50 ~]# systemctl stop mysqld
+[root@host50 ~]# systemctl disable mysqld
+Removed symlink /etc/systemd/system/multi-user.target.wants/mysqld.service.
+
+装包mysql-5.7.20-linux-glibc2.12-x86_64.tar.gz
+[root@host50 ~]# tar -xf mysql-5.7.20-linux-glibc2.12-x86_64.tar.gz
+[root@host50 ~]# mv mysql-5.7.20-linux-glibc2.12-x86_64 /usr/local/mysql
+[root@host50 ~]# ls /usr/local/mysql/bin/mysqld_multi  (多实例模块)
+[root@host50 ~]# vim /etc/profile
+export PATH=/usr/local/mysql/bin:$PATH
+:wq
+[root@host50 ~]# source /etc/profile
+[root@host50 ~]# echo $PATH
+/usr/local/mysql/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin
+
+创建主配置文件
+[mysqld_multi]
+mysqld=/usr/local/mysql/bin/mysqld_safe
+mysqladmin=/usr/local/mysql/bin/mysqladmin
+user=root
+
+[mysql1]
+port =3307
+datadir=/data3307
+socket=/data3307/mysql.sock   起服务才有这个sock文件，systemctl stop mysqld
+pid-file=/data3307/mysqld.pid
+log-error=/data3307/mysqld.err
+
+[mysqld2]
+port =3308
+datadir=/data3308
+socket=/data3308/mysql.sock
+pid-file=/data3308/mysqld.pid
+log-error=/data3308/mysqld.err
+:wq
+
+[root@host50 mysql]# mkdir /data{3307,3308}(文件为空)
+
+手动初始化授权库
+[root@host50 mysql]# mysqld --user=mysql --basedir=/usr/local/mysql --datadir=/data3307 --initialize
+显示信息2018-07-21T09:49:50.981162Z 1 [Note] A temporary password is generated for root@localhost: zHf,0gpt=jMO（这个是初始密码）
+[root@host50 mysql]# ls /data3307
+auto.cnf        ibdata1      ib_logfile1  performance_schema
+ib_buffer_pool  ib_logfile0  mysql        sys
+
+[root@host50 mysql]#  mysqld --user=mysql --basedir=/usr/local/mysql --datadir=/data3308 --initialize
+2018-07-21T09:53:34.996696Z 1 [Note] A temporary password is generated for root@localhost: ryls;51lLAC?
+
+启动服务
+
+
+
+测试配置
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,394 @@
+
+day03
+redis主从复制  （类似与MySQL服务的主从同步）
+
+redis服务持久化方式介绍
+RDB
+AOF
+
+redis 数据类型：
+字符   *
+列表   *
+hash  *
+集合set
+有序集合zset
+++++++++++++++++++++++++++++++++
+redis主从复制  （类似与MySQL服务的主从同步）
+默认redis服务启动后，默认都是主库
+一主一从  把52 配置为51 从库  
+192.168.4.52:6352> SLAVEOF 192.168.4.51 6351
+192.168.4.52:6352> keys  *
+192.168.4.52:6352> info  replication
+
+192.168.4.51:6351> info  replication
+
+一主多从把53 配置为51 从库 
+192.168.4.53:6353> SLAVEOF 192.168.4.51 6351
+192.168.4.53:6353> keys  *
+192.168.4.51:6351> info  replication
+
+主从从
+把53手动切换为主库  > slaveof   no  one
+                                   > flushall
+
+把53配置为52的从库
+
+
+休息到 10:10
+
+
+配置命令行配置马上生效 不需要重启服务（一旦重启服务失效）
+> SLAVEOF 主库ip地址 主库端口号
+
+修改配置文件，永久有效，但需要重启服务才能生效。
+]# /etc/init.d/redis_6379 stop
+vim  /etc/redis/6379.conf
+282 slaveof   192.168.4.52  6352
+:wq
+]# /etc/init.d/redis_6379 start
+[root@host53 ~]# redis-cli  -h 192.168.4.53  -p 6353
+192.168.4.53:6353> info replication
+# Replication
+role:slave
+master_host:192.168.4.52
+master_port:6352
+192.168.4.53:6353> slaveof  no one   #手动切换为主库
+
+主库设置连接密码时，从库的配置。
+
+282 slaveof 192.168.4.51 6351
+289 masterauth 123456
+
+休息到11:10
+主从同步的哨兵模式
+
+从库：
+]#vim /etc/sentinel.conf
+sentinel monitor host51  192.168.4.51  6351 1
+sentinel auth-pass host51 123456
+:wq
+
+]#redis-sentinel    /etc/sentinel.conf
+
+上午12点之前都不讲课了
+自由练习： 主从复制  和哨兵模式  
+主机 51  52  53  恢复为独立的redis服务器    
+
+++++++++++++++++++++++
+redis服务持久化方式介绍
+redis服务关于RDB文件的配置
+
+254 dbfilename  "dump.rdb"
+217 #   save ""
+ 219 save 900 1
+ 220 save 300 10
+ 221 save 60 10000
+
+休息到15:10
+
+/etc/init.d/redis_6379 stop
+
+dump.rdb
+
+
+AOF
+/etc/init.d/redis_6379 stop
+vim /etc/redis/6379.conf
+ 702 # appendfsync always
+ 703 appendfsync everysec
+ 704 # appendfsync no
+appendonly   yes
+appendfilename "appendonly.aof"
+:wq
+/etc/init.d/redis_6379 start
+
+休息到 16:25
+
+redis 数据类型：
+192.168.4.51:6351> set name tom
+OK
+192.168.4.51:6351> get name
+"tom"
+192.168.4.51:6351> set name yaya NX
+(nil)
+192.168.4.51:6351> get name
+"tom"
+192.168.4.51:6351> set name yaya XX
+OK
+192.168.4.51:6351> get name
+"yaya"
+192.168.4.51:6351> 
+
+192.168.4.51:6351> set  tel  17101088890
+
+192.168.4.51:6351> get tel
+"17101088890"
+
+192.168.4.51:6351> SETRANGE tel 4 ****
+(integer) 11
+192.168.4.51:6351> get tel
+"1710****890"
+
+192.168.4.51:6351> STRLEN  tel
+(integer) 11
+192.168.4.51:6351> STRLEN name
+
+休息到17:15
+192.168.4.51:6351> EXISTS name2
+(integer) 0
+192.168.4.51:6351> APPEND name2 aliec
+(integer) 5
+192.168.4.51:6351> get name2
+"aliec"
+192.168.4.51:6351> 
+
+192.168.4.51:6351> EXISTS name
+(integer) 1
+192.168.4.51:6351> get name
+"yaya"
+192.168.4.51:6351> APPEND name 666
+(integer) 7
+192.168.4.51:6351> get name
+"yaya666"
+
+setbit  yayabaobao  1  1
+setbit  yayabaobao  2  0
+setbit  yayabaobao  3 1
+setbit  yayabaobao 4  1
+
+1011
+192.168.4.51:6351> setbit  yayabaobao  1  1
+(integer) 0
+192.168.4.51:6351> setbit  yayabaobao  2  1
+(integer) 0
+192.168.4.51:6351> setbit  yayabaobao  3  1
+(integer) 0
+192.168.4.51:6351> setbit  yayabaobao  4  0
+(integer) 0
+192.168.4.51:6351> setbit  yayabaobao  5  1
+(integer) 0
+192.168.4.51:6351> keys *
+1) "tel"
+2) "name"
+3) "yayabaobao"
+4) "y"
+5) "x"
+6) "name2"
+7) "gel"
+8) "sex"
+192.168.4.51:6351> BITCOUNT yayabaobao
+(integer) 4
+192.168.4.51:6351> 
+
+192.168.4.51:6351> set x 100
+192.168.4.51:6351> get x
+"100"
+192.168.4.51:6351> DECRBY x 20
+(integer) 80
+192.168.4.51:6351> DECRBY x 20
+(integer) 60
+192.168.4.51:6351> get x
+"60"
+192.168.4.51:6351> 
+
+192.168.4.51:6351> get tel
+"1710****890"
+192.168.4.51:6351> GETRANGE tel 1 2
+"71"
+192.168.4.51:6351> 
+192.168.4.51:6351> 
+192.168.4.51:6351> GETRANGE tel 0 3
+"1710"
+192.168.4.51:6351> GETRANGE tel -2 -1
+"90"
+192.168.4.51:6351> 
+192.168.4.51:6351> GETRANGE tel -3 -1
+"890"
+192.168.4.51:6351> MGET tel  x2 
+1) "1710****890"
+2) "-1"
+192.168.4.51:6351> get x2
+"-1"
+192.168.4.51:6351> 
+192.168.4.51:6351> set x  201
+OK
+192.168.4.51:6351> get x
+"201"
+192.168.4.51:6351> incr x
+(integer) 202
+192.168.4.51:6351> incr x
+(integer) 203
+192.168.4.51:6351> get x
+"203"
+192.168.4.51:6351> 
+192.168.4.51:6351> INCRBY x 3
+(integer) 206
+192.168.4.51:6351> INCRBY x 6
+(integer) 212
+192.168.4.51:6351> get x
+"212"
+192.168.4.51:6351> 
+
+192.168.4.51:6351> INCRBY x 0.3
+(error) ERR value is not an integer or out of range
+192.168.4.51:6351> 
+192.168.4.51:6351> INCRBYFLOAT  x   0.3
+"212.3"
+192.168.4.51:6351> INCRBYFLOAT  x   0.9
+"213.2"
+192.168.4.51:6351> 
+192.168.4.51:6351> set j 10 k 20
+(error) ERR syntax error
+192.168.4.51:6351> set j 10
+OK
+192.168.4.51:6351> 
+192.168.4.51:6351> mset j 10 k 20
+OK
+192.168.4.51:6351> mget j k
+1) "10"
+2) "20"
+192.168.4.51:6351> get j
+"10"
+192.168.4.51:6351> 
+list  列表
+192.168.4.51:6351> lpush website a b c d e 
+(integer) 5
+192.168.4.51:6351> type website
+list
+192.168.4.51:6351> LRANGE website 0 -1
+1) "e"
+2) "d"
+3) "c"
+4) "b"
+5) "a"
+192.168.4.51:6351> LRANGE website 0 2
+1) "e"
+2) "d"
+3) "c"
+192.168.4.51:6351> LRANGE website 0 -2
+1) "e"
+2) "d"
+3) "c"
+4) "b"
+192.168.4.51:6351> LRANGE website -1 -2
+(empty list or set)
+192.168.4.51:6351> LRANGE website -2 -1
+1) "b"
+2) "a"
+192.168.4.51:6351> 
+
+192.168.4.51:6351> LRANGE website 0 -1
+1) "e"
+2) "d"
+3) "c"
+4) "b"
+5) "a"
+192.168.4.51:6351> lpop website 
+"e"
+192.168.4.51:6351> LRANGE website 0 -1
+1) "d"
+2) "c"
+3) "b"
+4) "a"
+192.168.4.51:6351> LLEN website
+(integer) 4
+192.168.4.51:6351> 
+
+192.168.4.51:6351> lset website  0  F
+OK
+192.168.4.51:6351> LRANGE website 0 -1
+1) "F"
+2) "c"
+3) "b"
+4) "a"
+192.168.4.51:6351>
+192.168.4.51:6351> RPUSH website j k z
+(integer) 7
+192.168.4.51:6351> LRANGE website 0 -1
+1) "F"
+2) "c"
+3) "b"
+4) "a"
+5) "j"
+6) "k"
+7) "z"
+192.168.4.51:6351> rpop website
+"z"
+192.168.4.51:6351> LRANGE website 0 -1
+1) "F"
+2) "c"
+3) "b"
+4) "a"
+5) "j"
+6) "k"
+192.168.4.51:6351> 
+
+hash表
+
+192.168.4.51:6351> hset ywzd writer dmy
+(integer) 1
+192.168.4.51:6351> type ywzd
+hash
+192.168.4.51:6351> hset ywzd money 68
+(integer) 1
+192.168.4.51:6351> hset ywzd sday 20171224
+(integer) 1
+192.168.4.51:6351>
+
+
+ 作者        dmy   
+ 价钱        68
+ 发行日期  2017-12-24
+ 版本          v2
+192.168.4.51:6351> hget ywzd money
+"68"
+192.168.4.51:6351> 
+
+192.168.4.51:6351> hmset ywzd sale ddwang  geshu 10000
+OK
+192.168.4.51:6351> 
+192.168.4.51:6351> hmget ywzd sale geshu
+1) "ddwang"
+2) "10000"
+192.168.4.51:6351> hkeys ywzd
+1) "writer"
+2) "money"
+3) "sday"
+4) "sale"
+5) "geshu"
+192.168.4.51:6351> 
+192.168.4.51:6351> HVALS ywzd
+1) "dmy"
+2) "68"
+3) "20171224"
+4) "ddwang"
+5) "10000"
+192.168.4.51:6351> 
+192.168.4.51:6351> HGETALL ywzd
+ 1) "writer"
+ 2) "dmy"
+ 3) "money"
+ 4) "68"
+ 5) "sday"
+ 6) "20171224"
+ 7) "sale"
+ 8) "ddwang"
+ 9) "geshu"
+10) "10000"
+192.168.4.51:6351> 
+
+192.168.4.51:6351> HDEL ywzd sday  sale
+(integer) 2
+
+
+
+
+
+
+
+
+
+
+
+
+

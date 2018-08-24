@@ -1,0 +1,119 @@
+[root@sql6 ~]# masterha_check_repl --conf=/etc/mha_manager/app1.cnf
+Sat Aug  4 09:36:29 2018 - [warning] Global configuration file /etc/masterha_default.cnf not found. Skipping.
+Sat Aug  4 09:36:29 2018 - [info] Reading application default configuration from /etc/mha_manager/app1.cnf..
+Sat Aug  4 09:36:29 2018 - [info] Reading server configuration from /etc/mha_manager/app1.cnf..
+Sat Aug  4 09:36:29 2018 - [info] MHA::MasterMonitor version 0.56.
+Sat Aug  4 09:36:30 2018 - [info] GTID failover mode = 0
+Sat Aug  4 09:36:30 2018 - [info] Dead Servers:
+Sat Aug  4 09:36:30 2018 - [info] Alive Servers:
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.21(192.168.4.21:3306)
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.22(192.168.4.22:3306)
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.23(192.168.4.23:3306)
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.24(192.168.4.24:3306)
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.25(192.168.4.25:3306)
+Sat Aug  4 09:36:30 2018 - [info] Alive Slaves:
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.22(192.168.4.22:3306)  Version=5.7.17-log (oldest major version between slaves) log-bin:enabled
+Sat Aug  4 09:36:30 2018 - [info]     Replicating from 192.168.4.21(192.168.4.21:3306)
+Sat Aug  4 09:36:30 2018 - [info]     Primary candidate for the new Master (candidate_master is set)
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.23(192.168.4.23:3306)  Version=5.7.17-log (oldest major version between slaves) log-bin:enabled
+Sat Aug  4 09:36:30 2018 - [info]     Replicating from 192.168.4.21(192.168.4.21:3306)
+Sat Aug  4 09:36:30 2018 - [info]     Primary candidate for the new Master (candidate_master is set)
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.24(192.168.4.24:3306)  Version=5.7.17 (oldest major version between slaves) log-bin:disabled
+Sat Aug  4 09:36:30 2018 - [info]     Replicating from 192.168.4.21(192.168.4.21:3306)
+Sat Aug  4 09:36:30 2018 - [info]     Not candidate for the new Master (no_master is set)
+Sat Aug  4 09:36:30 2018 - [info]   192.168.4.25(192.168.4.25:3306)  Version=5.7.17 (oldest major version between slaves) log-bin:disabled
+Sat Aug  4 09:36:30 2018 - [info]     Replicating from 192.168.4.21(192.168.4.21:3306)
+Sat Aug  4 09:36:30 2018 - [info]     Not candidate for the new Master (no_master is set)
+Sat Aug  4 09:36:30 2018 - [info] Current Alive Master: 192.168.4.21(192.168.4.21:3306)
+Sat Aug  4 09:36:30 2018 - [info] Checking slave configurations..
+Sat Aug  4 09:36:30 2018 - [info]  read_only=1 is not set on slave 192.168.4.22(192.168.4.22:3306).
+Sat Aug  4 09:36:30 2018 - [warning]  relay_log_purge=0 is not set on slave 192.168.4.22(192.168.4.22:3306).
+Sat Aug  4 09:36:30 2018 - [info]  read_only=1 is not set on slave 192.168.4.23(192.168.4.23:3306).
+Sat Aug  4 09:36:30 2018 - [warning]  relay_log_purge=0 is not set on slave 192.168.4.23(192.168.4.23:3306).
+Sat Aug  4 09:36:30 2018 - [info]  read_only=1 is not set on slave 192.168.4.24(192.168.4.24:3306).
+Sat Aug  4 09:36:30 2018 - [warning]  log-bin is not set on slave 192.168.4.24(192.168.4.24:3306). This host cannot be a master.
+Sat Aug  4 09:36:30 2018 - [info]  read_only=1 is not set on slave 192.168.4.25(192.168.4.25:3306).
+Sat Aug  4 09:36:30 2018 - [warning]  log-bin is not set on slave 192.168.4.25(192.168.4.25:3306). This host cannot be a master.
+Sat Aug  4 09:36:30 2018 - [info] Checking replication filtering settings..
+Sat Aug  4 09:36:30 2018 - [info]  binlog_do_db= , binlog_ignore_db= 
+Sat Aug  4 09:36:30 2018 - [info]  Replication filtering check ok.
+Sat Aug  4 09:36:30 2018 - [info] GTID (with auto-pos) is not supported
+Sat Aug  4 09:36:30 2018 - [info] Starting SSH connection tests..
+Sat Aug  4 09:36:35 2018 - [info] All SSH connection tests passed successfully.
+Sat Aug  4 09:36:35 2018 - [info] Checking MHA Node version..
+Sat Aug  4 09:36:37 2018 - [info]  Version check ok.
+Sat Aug  4 09:36:37 2018 - [info] Checking SSH publickey authentication settings on the current master..
+Sat Aug  4 09:36:37 2018 - [info] HealthCheck: SSH to 192.168.4.21 is reachable.
+Sat Aug  4 09:36:37 2018 - [info] Master MHA Node version is 0.56.
+Sat Aug  4 09:36:37 2018 - [info] Checking recovery script configurations on 192.168.4.21(192.168.4.21:3306)..
+Sat Aug  4 09:36:37 2018 - [info]   Executing command: save_binary_logs --command=test --start_pos=4 --binlog_dir=/var/lib/mysql,/var/log/mysql --output_file=/var/tmp/save_binary_logs_test --manager_version=0.56 --start_file=db21.000009 
+Sat Aug  4 09:36:37 2018 - [info]   Connecting to root@192.168.4.21(192.168.4.21:22).. 
+  Creating /var/tmp if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to db21.000009
+Sat Aug  4 09:36:38 2018 - [info] Binlog setting check done.
+Sat Aug  4 09:36:38 2018 - [info] Checking SSH publickey authentication and checking recovery script configurations on all alive slave servers..
+Sat Aug  4 09:36:38 2018 - [info]   Executing command : apply_diff_relay_logs --command=test --slave_user='root' --slave_host=192.168.4.22 --slave_ip=192.168.4.22 --slave_port=3306 --workdir=/var/tmp --target_version=5.7.17-log --manager_version=0.56 --relay_log_info=/var/lib/mysql/relay-log.info  --relay_dir=/var/lib/mysql/  --slave_pass=xxx
+Sat Aug  4 09:36:38 2018 - [info]   Connecting to root@192.168.4.22(192.168.4.22:22).. 
+  Checking slave recovery environment settings..
+    Opening /var/lib/mysql/relay-log.info ... ok.
+    Relay log found at /var/lib/mysql, up to sql2-relay-bin.000010
+    Temporary relay log file is /var/lib/mysql/sql2-relay-bin.000010
+    Testing mysql connection and privileges..mysql: [Warning] Using a password on the command line interface can be insecure.
+ done.
+    Testing mysqlbinlog output.. done.
+    Cleaning up test file(s).. done.
+Sat Aug  4 09:36:39 2018 - [info]   Executing command : apply_diff_relay_logs --command=test --slave_user='root' --slave_host=192.168.4.23 --slave_ip=192.168.4.23 --slave_port=3306 --workdir=/var/tmp --target_version=5.7.17-log --manager_version=0.56 --relay_log_info=/var/lib/mysql/relay-log.info  --relay_dir=/var/lib/mysql/  --slave_pass=xxx
+Sat Aug  4 09:36:39 2018 - [info]   Connecting to root@192.168.4.23(192.168.4.23:22).. 
+  Checking slave recovery environment settings..
+    Opening /var/lib/mysql/relay-log.info ... ok.
+    Relay log found at /var/lib/mysql, up to sql3-relay-bin.000006
+    Temporary relay log file is /var/lib/mysql/sql3-relay-bin.000006
+    Testing mysql connection and privileges..mysql: [Warning] Using a password on the command line interface can be insecure.
+ done.
+    Testing mysqlbinlog output.. done.
+    Cleaning up test file(s).. done.
+Sat Aug  4 09:36:40 2018 - [info]   Executing command : apply_diff_relay_logs --command=test --slave_user='root' --slave_host=192.168.4.24 --slave_ip=192.168.4.24 --slave_port=3306 --workdir=/var/tmp --target_version=5.7.17 --manager_version=0.56 --relay_log_info=/var/lib/mysql/relay-log.info  --relay_dir=/var/lib/mysql/  --slave_pass=xxx
+Sat Aug  4 09:36:40 2018 - [info]   Connecting to root@192.168.4.24(192.168.4.24:22).. 
+  Checking slave recovery environment settings..
+    Opening /var/lib/mysql/relay-log.info ... ok.
+    Relay log found at /var/lib/mysql, up to sql24-relay-bin.000004
+    Temporary relay log file is /var/lib/mysql/sql24-relay-bin.000004
+    Testing mysql connection and privileges..mysql: [Warning] Using a password on the command line interface can be insecure.
+ done.
+    Testing mysqlbinlog output.. done.
+    Cleaning up test file(s).. done.
+Sat Aug  4 09:36:41 2018 - [info]   Executing command : apply_diff_relay_logs --command=test --slave_user='root' --slave_host=192.168.4.25 --slave_ip=192.168.4.25 --slave_port=3306 --workdir=/var/tmp --target_version=5.7.17 --manager_version=0.56 --relay_log_info=/var/lib/mysql/relay-log.info  --relay_dir=/var/lib/mysql/  --slave_pass=xxx
+Sat Aug  4 09:36:41 2018 - [info]   Connecting to root@192.168.4.25(192.168.4.25:22).. 
+  Checking slave recovery environment settings..
+    Opening /var/lib/mysql/relay-log.info ... ok.
+    Relay log found at /var/lib/mysql, up to mysql25-relay-bin.000004
+    Temporary relay log file is /var/lib/mysql/mysql25-relay-bin.000004
+    Testing mysql connection and privileges..mysql: [Warning] Using a password on the command line interface can be insecure.
+ done.
+    Testing mysqlbinlog output.. done.
+    Cleaning up test file(s).. done.
+Sat Aug  4 09:36:42 2018 - [info] Slaves settings check done.
+Sat Aug  4 09:36:42 2018 - [info] 
+192.168.4.21(192.168.4.21:3306) (current master)
+ +--192.168.4.22(192.168.4.22:3306)
+ +--192.168.4.23(192.168.4.23:3306)
+ +--192.168.4.24(192.168.4.24:3306)
+ +--192.168.4.25(192.168.4.25:3306)
+
+Sat Aug  4 09:36:42 2018 - [info] Checking replication health on 192.168.4.22..
+Sat Aug  4 09:36:42 2018 - [info]  ok.
+Sat Aug  4 09:36:42 2018 - [info] Checking replication health on 192.168.4.23..
+Sat Aug  4 09:36:42 2018 - [info]  ok.
+Sat Aug  4 09:36:42 2018 - [info] Checking replication health on 192.168.4.24..
+Sat Aug  4 09:36:42 2018 - [info]  ok.
+Sat Aug  4 09:36:42 2018 - [info] Checking replication health on 192.168.4.25..
+Sat Aug  4 09:36:42 2018 - [info]  ok.
+Sat Aug  4 09:36:42 2018 - [info] Checking master_ip_failover_script status:
+Sat Aug  4 09:36:42 2018 - [info]   /etc/mha_manager/master_ip_failover --command=status --ssh_user=root --orig_master_host=192.168.4.21 --orig_master_ip=192.168.4.21 --orig_master_port=3306 
+Sat Aug  4 09:36:42 2018 - [info]  OK.
+Sat Aug  4 09:36:42 2018 - [warning] shutdown_script is not defined.
+Sat Aug  4 09:36:42 2018 - [info] Got exit code 0 (Not master dead).
+
+MySQL Replication Health is OK.

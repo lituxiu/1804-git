@@ -1,0 +1,111 @@
+sentinel auth-pass mymaster 123456
+++++++++++++++++++++++++++++++++++++
+
++++++++++++++++++++++++++++++++++
+redis主从复制   MySQL主从同步
+一主一从  一主多从  主从从
+
+>info  replication
+>slaveof  master_ip   master_port
+>slaveof  no  one
+++++++++++++++++++++++++++
+配置永久主从同步结构 且带认证（同步数据时需要输入主库
+
+密码）
+
+
+哨兵模式
+
+
+57
+]#rm  -rf /etc/sentinel.conf
+
+]#vim /etc/sentinel.conf
+sentinel monitor host50 192.168.4.50 6350 1
+:wq
+
+]#redis-sentinel  /etc/sentinel.conf
+
+50
+/etc/init.d/redis_6379 stop
+
+
+57:
+> info  replication
+> role: master
+
+
+
+
+
+
+
+redis持久化
+RDB
+
+
+
+
+AOF   类似于MySQL服务的binlog日志文件
+
+
+16:20
++++++++++++++++++++++++++++++++++++++
+启用aof文件对数据做持久化
+
+启用50主机的aof文件 对数据做持久化。
+
+连接50主机 存储数据，然后查看aof文件的内容
+
+拷贝aof文件到系统的/root目录下 
+
+连接50主机 删除所有数据，使用备份的aof文件恢复数据。
+
+连接50主机，查看数据是否恢复成功。
+
+
+]# redis-check-aof  --fix  appendonly.aof 
+
+++++++++++++++++++++++++++++++++++++++
+redis 和 memcached 的区别
+
+         key  values
+
+
+redis数据类型
+string
+list
+hash
+
+
+xxxxxxxx
+01
+
+setbit  yayalog  1  1
+                 2  0
+                 3  0
+1001010001
+
+17:15  
+++++++++++++++++++++++++++++++
+搭建redis服务器 
+redis服务的基本使用
+LNMP+Redis
+
+搭建redis集群 
+(解决访问节点单点故障  同时实现数据的自动备份)
+
+管理集群： 向集群里添加和删除（master slave）
+
+
+部署redis主从同步结构 
+
+在从库上启用哨兵模式
+
+redis服务数据持久化  RDB  AOF
+
+
+redis数据类型  字符 set get setbit setcount
+                    decr  incr  incrby  incrbyfloat
+
+

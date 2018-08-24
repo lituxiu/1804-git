@@ -1,0 +1,180 @@
+ DB2 day01 mysql主从同步服务器（20180720）
+
+（32位可以理解成32个空位，每个空位上填一个逻辑数（1或0），不同的数字有2的32次方个，不同的数字就是一个不同的内容，地址只是选用了其中的若干位，一个字节有8位）
+
+数据库管理－DBA1课程总结
+基础
+   搭建mysql数据库服务器
+   
+   建库 建表
+   mysql数据类型
+   mysql建  index,primary key,foreign key
+   mysql存储引擎 innodb,myisam,事务 事物特点（ACID）,表级锁 行级锁 读锁 写锁
+ 
+    管理表记录 
+     insert select update delete 匹配条件
+       数据的导入，导出
+       用户授权，权限撤销 安装图形管理工具
+       数据务份与恢复 mydqldump(完全备份) binlog日志（增量备份） innobackpex(完全备份，完全恢复，增量备份，恢复一张表)
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+数据库管理-DBA2 内容
+mysql    主从同步
+           高可用集群
+           数据读写分离
+           数据分片
+          多实例
+          存储过程
+          视图
+          优化
+++++++++++++++++++++++++++++++++++++++++++++++++
+day01   主从同步
+环境（4台数据库服务器）
+什么是主从同步？
+实现功能是什么？
+    
+mysql> select @@hostname;查看主机名
+
+怎么配置？
+一、主master库配置如下：
+    启用binlog日志文件(指这个必须要server_id=)
+    vim /etc/my.cnf
+    log-bin=master51
+    binlog_format="mixed"
+    server_id=51
+    :wq
+   ]# systemctl restart mysqld
+     ]# ls /var/lib/mysql/master51.*(有两个文件)
+/var/lib/mysql/master51.000001
+/var/lib/mysql/master51.index
+
+    用户授权：给从库添加连接时使用的用户名
+mysql> grant replication slave on *.* to repluser@'192.168.4.52' identified by '123456';
+    查看正在使用的binlog日志信息
+
+从库配置如下：
+指定server_id
+测试授权用户
+管理本机登录指定主库信息
+mysql> change master to master_host="192.168.4.51",master_user="repluser",master_password="123456",master_log_file="master51.000001",master_log_pos=452;(设置形式，用这用记不能查同步)
+mysql> start slave;（IO和SQL开关）
+查看配置
+mysql> show slave status\G;
+ Slave_IO_Running: Yes
+            Slave_SQL_Running: Yes
+
+排错方法：：
+mysql> show slave status\G;
+IO＝NO
+last_io_error
+last_sql_errot
+
+原因一：Last_IO_Error: error connecting to master 'daxiuge@192.168.4.10:3306' - retry-time: 60  retries: 1(这是主机地址或授权用户和密码错了，要注意master_password＝“”不能有空格)
+
+问题二、
+Last_SQL_Error: Error 'Table 'bbsdb.a' doesn't exist' on query. Default database: 'bbsdb'. Query: 'insert into a values(1)'
+这原因是主从数据库数据没有一致
+
+
+
+客户端测试主从同配置？
+create database gamedb;
+create table gamedb.t1(id int);
+grant select,insert on gamedb.* to webadmin@'%' identified by "123456";
+show 
+MYSQL -h192.168.4.51 -uwebadmin -p123456 
+show grants;
+insert into gamedb.t1 values(888);
+
+客户端连接主库存储数据，在从库本机也能够看到客户端连接主库存储的数据
+
+
+主从同步原理
+
+
+show processlist\G;
+
+
+如何让人库暂时不同步主库的数据
+stop slave
+
+如何把从库还原成独立的数据库服务器
+[root@host52 mysql]# rm -rf host52-relay-bin.*
+[root@host53 mysql]# rm -rf host53-relay-bin.*
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+一主多从（先确保主从的服务器数据库数据一致）
+host51
+mysql> grant replication slave on *.* to daxiuge888@'%' identified by '123456';
+
+root@host51 ~]# mysqldump -uroot -p123456 db1 > /root/db1-bak.sql
+51 ~]# scp -r db1-bak.sql/ 192.168.4.52:/root
+51 ~]# scp -r db1-bak.sql/ 192.168.4.53:/root
+52 ~]# mysql -uroot -p123456 db1 < db1-bak.sql
+53 ~]# mysql -uroot -p123456 db1 < db1-bak.sql
+
+host52
+mysql> change master to master_host="192.168.4.51",master_user="daxiuge888",master_password="123456",master_log_file="master51.000005",master_log_pos=423;
+
+host53
+mysql> change master to master_host="192.168.4.51",master_user="daxiuge888",master_password="123456",master_log_file="master51.000005",master_log_pos=423;
+
+
+
+主从从(作第一台从库的从库)
+host53
+]# systemctl stop mysqld
+]# cd /var/lib/mysql
+]# rm -rf master.info
+]# rm -rf relay-log.info 
+]# rm -rf host53-relay-bin.8
+]# systemctl start mysqld
+（host52也同样操作）
+
+host51
+]# rm -rf master51.*
+]# rm -rf db1/
+vim /etc/my.cnf
+[mysqld]
+log-bin=db51
+binlog_format="mixed"
+server_id=51
+:wq
+]# systemctl restart mysqld
+mysql> grant replication slave on *.* to yaya@'%' identified by '123qqq...A';
+
+host52
+mysql> change master to master_user="yaya",master_host="192.168.4.51",master_password="123qqq...A",master_log_file="db51.000001",master_log_pos=437;
+mysql> start slave;
+mysql> show slave status\G;
+    Slave_IO_Running: Yes
+            Slave_SQL_Running: Yes(要注意master_password)
+mysql> grant replication slave on *.* to kaka@'%' identified by '123qqq...A';
+
+host53
+mysql> change master to master_host="192.168.4.52",master_user="kaka",master_password="123qqq...A",master_log_file="master52.000001",master_log_pos=437;
+mysql> start slave;
+mysql> show slave status\G;
+    Slave_IO_Running: Yes
+            Slave_SQL_Running: Yes
+但是
+
+在host52主机
+[mysqld]
+server_id=52
+log-bin=master52
+binlog_format="mixed"
+log_slave_updates     (级联复制)
+
+host53
+stop slave
+start slave
+
+
+
+主主结构（不用来存储数据，要配合第三方软件来用）
+
+
+
+
+
+

@@ -1,0 +1,239 @@
+2018年8月1日
+MongoDB
+
+redis  set key value
+
+1.装包
+[root@host51 ~]# mkdir -p /usr/local/mongodb
+[root@host51 ~]# tar -zxvf mongodb-linux-x86_64-rhel70-3.6.3.tgz 
+[root@host51 ~]# cp -r mongodb-linux-x86_64-rhel70-3.6.3/bin/ /usr/local/mongodb/
+[root@host51 ~]# cd /usr/local/mongodb/
+[root@host51 mongodb]# ls
+bin
+[root@host51 mongodb]# mkdir etc logs
+[root@host51 mongodb]# mkdir -p data/db
+[root@host51 mongodb]# vim /etc/profile
+export PATH=/usr/local/mongodb/bin:$PATH
+:wq
+[root@host51 mongodb]# source /etc/profile
+[root@host51 mongodb]# echo $PATH
+/usr/local/mongodb/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin
+
+[root@host51 mongodb]# vim /usr/local/mongodb/etc/mongodb.conf
+logpath=/usr/local/mongodb/logs/mongodb.log
+logappend=true
+dbpath=/usr/local/mongodb/data/db
+fork=true
+:wq
+启动服务
+[root@host51 mongodb]# mongod -f /usr/local/mongodb/etc/mongodb.conf
+about to fork child process, waiting until server is ready for connections.
+forked process: 3548
+child process started successfully, parent exiting
+查看服务信息(默认端口27017,进程名mongod)
+]# ss -antupl | grep mongod
+tcp    LISTEN     0      128    127.0.0.1:27017                 *:*                   users:(("mongod",pid=3770,fd=11)
+]# ps -C mongod
+  PID TTY          TIME CMD
+ 3548 ?        00:00:00 mongod
+停止服务
+]# mongod -f /usr/local/mongodb/etc/mongodb.conf  --shutdown
+killing process with pid: 3548
+定义开启,停止服务的别名
+]# alias startmgo='mongod -f /usr/local/mongodb/etc/mongodb.conf'
+]# alias stopmgo='mongod -f /usr/local/mongodb/etc/mongodb.conf --shutdown
+连接服务操作
+]# mongo  
+
+[root@host51 mongodb]# vim /usr/local/mongodb/etc/mongodb.conf
+logpath=/usr/local/mongodb/logs/mongodb.log
+logappend=true
+dbpath=/usr/local/mongodb/data/db
+fork=true
+bind_ip=192.168.4.51
+port=27051
+:wq
+]# startmgo
+]# ss -antupl | grep mongod
+tcp    LISTEN     0      128    192.168.4.51:27051                 *:*                   users:(("mongod",pid=4359,fd=11))
+
+
+
+
+
+> show dbs;
+admin   0.000GB
+config  0.000GB
+local   0.000GB
+> use bbsdb
+switched to db bbsdb
+> db
+bbsdb
+> show tables;
+> db.c1.save({name:"bob",age:21,sex:"gril"})
+WriteResult({ "nInserted" : 1 })
+> db.c1.save({name:"bob",email:"plj@tedu.cn"})
+WriteResult({ "nInserted" : 1 })
+> show tables
+c1
+> db.c1.find()
+{ "_id" : ObjectId("5b613d250c96ec4dd61147eb"), "name" : "bob", "age" : 21, "sex" : "gril" }
+{ "_id" : ObjectId("5b613d6c0c96ec4dd61147ec"), "name" : "bob", "email" : "plj@tedu.cn" }
+> db.c1.findOne()
+{
+	"_id" : ObjectId("5b613d250c96ec4dd61147eb"),
+	"name" : "bob",
+	"age" : 21,
+	"sex" : "gril"
+}
+> db.c1.insert({name:"lucy",class:"nsd1804",tel:"88888888"})
+> db.c1.find({name:"lucy"})
+{ "_id" : ObjectId("5b614e7f0c96ec4dd61147ed"), "name" : "lucy", "class" : "nsd1804", "tel" : "88888888" }
+> db.c1.remove({name:"lucy"})
+WriteResult({ "nRemoved" : 1 })
+> db.c1.find({name:"lucy"})
+> show tables
+c1
+> db.c1.find()
+> db.c1.drop()
+true
+> show tables
+> 
+
+库的管理命令  集合的管理命令 文档的管理命令
+
+> db.c2.save({name:"jack",school:"tarena",single:false})
+> db.c2.save({name:"lilei",school:"tarena",single:false,pay:null})
+> db.c2.find()
+> db.c2.count()
+2    //2行
+数值类型
+> db.c2.save({name:"tom",xf:NumberInt(498.23)})  //4个字节
+> db.c2.save({name:"tom",xf:NumberLong(4918)})  //8个字节
+> db.c2.save({name:"xiaoqiang",like:["girl","game","eat","sleep"]})         //数组
+
+代码类型
+> db.c2.save({
+... lname:"php",
+... code:function(){/* <?php echo "hello by"; ?> */},
+... like:10000
+... })
+> db.c2.find({lname:"php"})
+
+日期
+
+对象
+> db.c2.save({name:"xiaohong",stu_id:ObjectId(),class:"nsd1804"})
+
+内嵌(类似redis的hash)
+hash   
+hset ywzh
+writer dmy
+pay    68
+vers   v2
+
+> db.c2.save({ywzd:{wirter:"dmy",pay:68,vers:"v2"}})
+> db.c2.save({tarena:{address:"Bejing",tel:"888888",person:"hansy"}}
+
+正则
+> db.c2.save({jname:"shell",rcode:/.$/})
+> db.c2.save({jname:"shell"})
+
+以上类型:字符,数值,布尔,
+空 
+数组 [值1,值2,值N,... ]
+日期 New Date()
+正则 /正则表达式/
+代码 function(){/* */}
+对象 ObjectId()
+
++++++++++++++++++++++++++++++++++++++++++++++++++
+数据导出:把集合里的
+mongoexport --help
+
+]# mkdir /mbak
+导出csv格式时
+]# mongoexport --host 192.168.4.51 --port 27051 -d bbsdb -c c2  -f name,school  --type=csv > /mbak/c2.csv
+(注意存csv格式时,就一定要指定字段, -f name,school等)
+导出json格式
+]# mongoexport --host 192.168.4.51 --port 27051 -d bbsdb -c c2 --type=json > /mbak/c2.json
+]# cat /mbak/c2.json
+
+数据导入:把系统文件的内容存储到集合里
+mongoimport --help
+]# mongoimport --host 192.168.4.51 --port 27051 -d gamedb -c col --type=json /mbak/c2.json
+导入csv
+(用--headerline更合理)
+]# mongoimport --host 192.168.4.51 --port 27051 -d gamedb -c stu --headerline --type=csv /mbak/c2.csv
+{ "_id" : ObjectId("5b6171b4a40d6119f9e77962"), "name" : "lilei", "school" : "tarena" }
+{ "_id" : ObjectId("5b6171b4a40d6119f9e77963"), "name" : "jack", "school" : "tarena" }
+{ "_id" : ObjectId("5b6171b4a40d6119f9e77964"), "name" : "tom", "school" : "" }
+
+]# mongoimport --host 192.168.4.51 --port 27051 -d gamedb -c tea -f name,school --type=csv /mbak/c2.csv
+{ "_id" : ObjectId("5b61723ea40d6119f9e7797a"), "name" : "name", "school" : "school" }
+{ "_id" : ObjectId("5b61723ea40d6119f9e7797b"), "name" : "lilei", "school" : "tarena" }
+{ "_id" : ObjectId("5b61723ea40d6119f9e7797c"), "name" : "jack", "school" : "tarena" }
+
+
+> db.coluser.save({
+... ... name:"yaya",
+... ... password:"x",
+... ... uid:1,
+... ... gid:1,
+... ... comment:"my teacher",
+... ... homedir:"/home/yaya",
+... ... shell:"/bin/bash"
+... ... })
+]# mongoexport --host 192.168.4.51 --port 27051 -d userdb -c coluser -f name,password,uid,gid,comment,homedir,shell --type=csv > /mbak/coluser.csv
+]# cat /mbak/coluser.csv
+name,password,uid,gid,comment,homedir,shell
+yaya,x,1,1,my teacher,/home/yaya,/bin/bash
+
+]# head -1 /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+]# cp /etc/passwd /mbak/
+]# sed -i 's/:/,/g' /mbak/passwd
+]# head -1 /mbak/passwd
+root,x,0,0,root,/root,/bin/bash
+
+]# sed -i '$r /mbak/passwd' /mbak/coluser.csv
+]# mongoimport --host 192.168.4.51 --port 27051 -d userdb -c coluser --headerline --drop --type=csv /mbak/coluser.csv 
+> db.coluser.find()
++++++++++++++++++++++++++++++++++++++++++++++++++++
+数据备份:
+[root@host51 mongodb]# mongodump --host 192.168.4.51 --port 27051  //这是备份所有库(不指定备所有)
+[root@host51 mongodb]# ls 
+bin  data  dump  etc  logs
+[root@host51 mongodb]# ls dump/
+admin  bbsdb  gamedb  userdb
+
+-d 指定库备份
+[root@host51 opt]# cd /opt
+[root@host51 opt]# mongodump --host 192.168.4.51 --port 27051 -d userdb
+[root@host51 opt]# ls dump/
+userdb
+备份某库的某个集合
+mongodump --host 192.168.4.51 --port 27051 -d gamedb -c stu
+指定备份到那个文件夹里(文件夹不存在会自动创建)
+]# mongodump --host 192.168.4.51 --port 27051 -d gamedb -c stu -o /bak
+]# ls /bak1/gamedb/
+stu.bson  stu.metadata.json
+
+数据恢复:(选*.bson文件)
+]# mongorestore  --host 192.168.4.51 --port 27051 -d gamedb -c stu /bak1/gamedb/stu.bson
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+c

@@ -111,6 +111,14 @@ sed  '2d' /etc/passwd   只删除第二行
 sed '3s#0#9#'  1.txt 对第三行第一个0替换
 “”作用，里面有特殊字符的话，先表达特殊字符，再进行操作，比如先实现变量的值结果输出再输出 其它字符（不加引号也是一样的，只不过有此文本字符必须加双引号才表达出效果）
 ‘’
+
+sed -i '10 i include extra/www/cibf;\ninclude extra/bbs.conf;\ninclude extra/blog.conf;' /usr/local/nginx/conf/nginx.conf
+显示include extra/www.conf
+   include extra/bbs.conf
+   include extra/blog.conf
+(sed -i '里的\n是换行')
+
+
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 问题？
   head -6 /etc/passwd | awk -F: NR==2'{print $1}'

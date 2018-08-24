@@ -1,0 +1,249 @@
+sed  -i  '$r   passwd'  c3.csv
+
+MongoDB副本集
+
+文档管理（查询 插入  更新  删除）
+
++++++++++++++++++++++++++++++++++++++++++++
+配置MongoDB副本集结构存储数据
+
+配置步骤1：准备3台mongodb服务器
+IP地址   端口  
+51       27051     
+52       27052
+53       27053
+
+
+解包
+创建工作目录
+编写主配置文件 （要启用集群配置）
+启动服务
+查看服务信息
+连接服务
+
+
+创建集群
+mongo  --host  192.168.4.51  --port 27051
+> 
+定义主机
+config = {_id:"rs1",
+
+members:[
+    
+{_id:0 , host:"192.168.4.51:27051"},
+    
+{_id:1 , host:"192.168.4.52:27052"},
+    
+{_id:2 , host:"192.168.4.53:27053"}
+]
+};
+
+> rs.initiate(config) 创建集群
+
+rs1:PRIMARY> rs.status() 查看状态信息
+
+rs1:PRIMARY> rs.isMaster()
+
++++++++++++++++++++++++++++++++++++++++++++++
+
+50:
+mongo  --host  主库IP  --port  主库端口
+>  建库  建集合  插入文档
+
+
+
+把主机51 ~ 53  恢复为独立的mongodb服务器
+
+删除配置文件中的集群配置 重启服务
+
+50
+文档管理（查询 插入  更新  删除）
+
+查询 
+插入  
+insert
+save
+> db.c5.insert({_id:17,name:"tom"})
+> db.c6.save({_id:17,name:"tom"})
+
+> db.c5.find()
+> db.c6.find()
+
+> db.c5.save({_id:17,name:"bob"})
+
+> db.c5.find()
+
+> db.c6.insert({_id:17,name:"jerry})
+2018-07-09T11:41:12.256+0800 E QUERY    [thread1] 
+
+SyntaxError: unterminated string literal @
+
+(shell):1:26
+
+> db.c6.find()
+{ "_id" : 17, "name" : "tom" }
+> 
+
+
+> db.c6.insertMany([{name:"zs",age:19,pay:26800},
+{name:"ls",school:"tarena"}])
+
+> db.c6.find()
+
+> db.c3.find({uid:1})
+> db.c3.find({uid:1},{_id:0})
+> db.c3.find({uid:1},{_id:0,shell:0})
+
+> db.c3.find({uid:1},{name:1,uid:1})
+> db.c3.find({uid:1},{_id:0,name:1,uid:1})
+
+> db.c3.find().limit(3)
+
+> db.c3.find().skip(3)
+
+> db.c3.find({},{_id:0,name:1,uid:1}).sort({uid:-1})
+
+++++++++++++++++++++++++++++++
+条件表示方式？
+
+> db.c3.find({name:"root"},{_id:0,name:1})
+
+> db.c3.find({name:"root"},{_id:0,name:1})
+ 
+> db.c3.find({name:"root",uid:1},{_id:0,name:1})
+
+ 
+db.c3.find( { 条件 } , {显示字段} )
+
+$in
+$nin
+$or
+
+db.c3.find( {uid:{$in:[1,6,9]}} ,{_id:0,uid:1} )
+
+
+db.c3.find( {   name:{  $in : 
+
+["root","daemon","bin"]  }   } , {_id:0,name:1} )
+
+db.c3.find( { shell:{$nin:
+
+["/bin/bash","/sbin/nologin"]} } , 
+
+{_id:0,name:1,shell:1} )
+
+
+
+ db.c3.find({$or:[{条件1},{条件2}]},{显示的字段})
+db.c3.find({$or:[ {name:"root"} ,{name:"mysql"} ]} 
+
+,{_id:0,name:1})
+
+
+正则配置
+db.c3.find({字段名:/正则表达式/},{显示的字段})
+
+db.c3.find({ name:/^a/ },{ name:1 , _id:0} )
+
+> db.c3.find({ name:/^....$/ },{ name:1 , _id:0} )
+
+> db.c3.find({ uid:3 },{ name:1 ,uid:1, _id:0} )
+
+数值比较
+$lt   $lte   $gt   $gte  $ne<      <=     >    >=    
+
+!=
+
+db.c3.find( { uid: { $gte:10,$lte:40} } , 
+
+{_id:0,name:1,uid:1})
+
+
+db.c3.find( { uid: { $gte:10,$lte:40} } , 
+
+{_id:0,name:1,uid:1}).sort({uid:1}).limit(1)
+
+休息到 15:05
+
+db.c3.find({   },{  })
+
+
+配置空  null
+ db.c3.save({name:null,uid:null})
+db.user.find({"_id": ObjectId
+
+("5afd0ddbd42772e7e458fc75"),"name" : null, "uid" : 
+
+null })
+db.c3.find({gid:null})
+
+
+更新(修改文档列的值)
+db.c3.update({条件},{修改的字段})
+ 
+> db.c3.find({uid:{$lte:3}},{_id:0})
+
+> db.c3.update({ uid:{$lte:3}},{password:"AAA"})
+
+> db.c3.find({uid:{$lte:3})
+
+> db.c3.find({password:"AAA"})
+
+> db.集合名.update({条件},{$set:{修改的字段} ,false,true）
+
+> db.c3.find({ uid:{$lte:3}},{_id:0} )
+
+> db.c3.update({uid:{$lte:3}},
+{$set:{password:"F"}},false,true)
+
+
+> db.c3.find({ uid:{$lte:3}},{_id:0} )
+
+
+
+$unset 删除文档指定的列
+> db.c3.update({ uid:1},{$unset:{password:"F"}})
+> db.c3.find({ uid:1},{_id:0})
+
+$inc  自加减 计算
+> db.c3.find({name:"bin"},{_id:0,name:1,uid:1})
+
+>db.user.update({name:"bin"},{$inc:{uid:2}}) 
+
+>db.c3.update({name:"bin"},{$inc:{uid:-1}})
+
+管理数组类型的字段
+> db.user.insert({name:"bob",
+likes:["a","b","c","d","e","f"]})
+
+> db.user.find()
+
+$push 允许重复添加
+> db.user.update({name:"bob"},{$push:{likes:"w"}})
+> db.user.update({name:"bob"},{$push:{likes:"w"}})
+> db.user.find()
+
+$addToSet 不允许重复添加
+> db.user.update({name:"bob"},{$addToSet:{likes:"w"}})
+
+> db.user.find()
+
+$pop
+> db.user.update({name:"bob"},{$pop:{likes:-1}})
+> db.user.update({name:"bob"},{$pop:{likes:1}})
+
+$pull  删除指定的值
+> db.user.update({name:"bob"},{$pull:{likes:"e"}})
+> db.user.find()
+
+删除所有文档，不会删除创建的索引
+> db.c5.remove({})
+
+删除与条件匹配的所有文档，不会删除创建的索引
+> db.c3.remove({uid:4})
+
+
+删除集合 同时删除索引
+> db.c5.drop()
+
+

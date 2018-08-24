@@ -1,0 +1,223 @@
+2018年8月2日
+51 ~]# mongod -f /usr/local/mongodb/etc/mongodb.conf
+51 ~]# ss -antpl | grep mongodLISTEN     0      128    192.168.4.51:27051                    *:*                   users:(("mongod",pid=2266,fd=11))
+51 ~]# mongo --host 192.168.4.51 --port 27051
+> show dbs
+admin   0.000GB
+bbsdb   0.000GB
+config  0.000GB
+gamedb  0.000GB
+local   0.000GB
+userdb  0.000GB
+> use gamedb
+> db.dropDatabase()
+> use bbsdb   
+> db.dropDatabase()
+> use userdb  
+> db.dropDatabase()
+
+部署MongoDB副本集(副本集:mongodb复制)
+主从缺点:当主库挂了,从库复制不了
+Replica Sets副本集:
+
+配置Replica Sets副本集
+依次停止3台(51,52,53)mongodb服务,增加副本集配置
+]# mongod -f /usr/local/mongodb/etc/mongodb.conf  --shutdown
+1.启用副本集
+]# vim /usr/local/mongodb/etc/mongodb.conf
+logpath=/usr/local/mongodb/logs/mongodb.log
+logappend=true
+dbpath=/usr/local/mongodb/data/db
+fork=true
+bind_ip=192.168.4.51
+port=27051
+replSet=rs1  副本集名  //注意大小写,三台主机配一样这一行
+2.创建副本集(在任意一台机子上)
+> config={
+... _id:"rs1",
+... members:[ 
+... {_id:0,host:"192.168.4.51:27051"},
+... {_id:1,host:"192.168.4.52:27052"},
+... {_id:2,host:"192.168.4.53:27053"}]}
+初始化
+> rs.initiate(config)
+{
+	"ok" : 1,
+显示成功,有以下变化
+rs1:SECONDARY> 
+rs1:PRIMARY> 
+
+rs1:PRIMARY> rs.status()
+rs1:PRIMARY> rs.isMaster()
+
+3.测试副本集
+51 ~]# mongo --host 192.168.4.51 --port 27051
+rs1:PRIMARY> show dbs
+admin   0.000GB
+config  0.000GB
+local   0.000GB
+rs1:PRIMARY> use db101
+switched to db db101
+rs1:PRIMARY> show tables
+rs1:PRIMARY> db.c1.save({name:"bob",age:21})
+WriteResult({ "nInserted" : 1 })
+rs1:PRIMARY> 
+
+默认不让副本执行查询操作
+rs1:SECONDARY> show dbs
+2018-08-02T10:50:43.785+0800 E QUERY    [thread1] Error: listDatabases failed:
+解决方法,分别在52,53副本上输db.getMongo().setSlaveOk()
+rs1:SECONDARY> db.getMongo().setSlaveOk()
+rs1:SECONDARY> show dbs
+admin   0.000GB
+config  0.000GB
+db101   0.000GB
+local   0.000GB
+
+config={
+_id:"rs1",
+members:[
+   {_id:0,host:"ip51:27051"},
+   {_id:1,host:"ip52:27052"},
+    {_id:2,host:"ip53:27053"}
+]};
+
++++++++++++++++++++++++++++++++++++++
+管理文档(查看 插入 修改 删除)
+51 ~]# scp /mbak/coluser.csv 192.168.4.52:/root
+52 ~]# mongoimport --host 192.168.4.52 --port 27052 -d userdb -c user --headerline --type=csv /root/coluser.csv
+
+save和insert都只能一次写入一条文档
+db.c1.save({_id:"abc",name:"bob"})
+db.c1.find()
+db.c1.save({_id:"abc",name:"tom"})   //_id字段值已存在,修改文档字段值
+db.c1.find()
+db.c1.insert({_id:"abc",name:"kaka"})  //_id字段值已存在,放弃插入
+db.c1.insert({_id:"abcd",name:"kaka"})
+
+db.c1.insertMany(               //这是insertMany可插入多条文档
+[ {name:"bob",age:19}, 
+{name:"lucy",set:"girl"},
+ {name:"bob",school:"tarena"}
+])
+
+查看
+db.c1.find().limit(2)
+db.c1.find().skip(2)
+db.c1.find({},{显示字段列表}).skip(2)  //第一个{}代表所有,空白代表所有
+db.user.find({name:"root"})  //显示name为root的全部内容
+ db.user.find({name:"root"},{name:1}) //在第一个条件中只显示name内容
+db.user.find({},{_id:0,name:1,uid:1}).sort({uid:-1})   //sort(age:1或-1) 1升序(上小下石),-1降序(上大下小)
+db.user.find({},{_id:0,name:1,uid:1}).sort({uid:-1}).limit(2)
+
+save() insert() insertMany() find() findOne() limit() skip() sort()
+
+匹配范围
+$in在...范围内
+ db.user.find({uid:{$in:[1,6,9]}})
+db.user.find({name:{$in:["root","mysql","apache"]
+$nin不在...范围内
+ db.user.find({shell:{$nin:["/bin/bash","/sbin/nologin"]}})
+$or 或
+db.user.find({$or:[{name:"root"},{uid:1}]},{_id:0,name:1,uid:1})
+{ "name" : "yaya", "uid" : 1 }
+{ "name" : "root", "uid" : 0 }
+{ "name" : "bin", "uid" : 1 }
+
+正则表达
+db.user.find({name:/^....$/},{name:1,uid:1})
+db.user.find({name:/a/},{name:1,uid:1})
+db.user.find({name:/^a/},{name:1,uid:1})
+
+数值比较
+$lt $lte  $gt $gte  $ne
+<     <=   >    >=    !=
+db.user.find({uid:{$gt:1000}},{name:1,_id:0})
+db.user.find({uid:{$gte:10,$lte:40}},{_id:0,name:1,uid:1})
+db.user.find({uid:{$gte:10,$lte:40}},{_id:0,name:1,uid:1}).sort({uid:-1})
+db.user.find({uid:{$gte:10,$lte:40}},{_id:0,name:1,uid:1}).sort({uid:-1}).limit(2)
+db.user.find({uid:{$gte:100,$lte:999}},{_id:0,name:1,uid:1})
+
+匹配null(空值),也可以匹配没有的字段
+db.user.find({name:null})
+
+更新文档update($set),还有{$set:{password:"A"}},false,true)要加false,true才全部,否则只改第一行
+修改 update({条件},{字段列表})
+db.user.find({uid:{$lte:10}},{_id:0,shell:0,homedir:0})
+db.user.update({uid:{$lte:10}},{$set:{password:"A"}},false,true)
+db.user.find({uid:{$lte:3}},{_id:0,shell:0,homedir:0})
+db.user.update({uid:{$lte:10}},{password:"a"})  //这个默认改第一个,其它不匹配的字段全删除
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+db.user.update({uid:{$lte:10}},{$set:{password:"A"}},false,true)
+WriteResult({ "nMatched" : 9, "nUpserted" : 0, "nModified" : 9 })
+db.user.find({uid:{$lte:10}},{_id:0,shell:0,homedir:0})
+
+$unset 删除与条件匹配文档的字段
+db.user.update({name:"root"},{$unset:{password:"A"}})
+db.user.find({name:"root"},{_id:0})
+
+$inc 字段值自加或自减
+db.user.find({shell:"/bin/bash"},{_id:0,uid:1,name:1})
+db.user.update({shell:"/bin/bash"},{$inc:{uid:2}})   自加2
+db.user.update({shell:"/bin/bash"},{$inc:{uid:-1}})  自减1
+
+
+$push/$addToSet 向数组添加新元素
+db.user.save({name:"lucy",like:["a","b","c","d"]})
+db.user.find({name:"lucy"},{_di:0})
+$push 可重复添加
+db.user.update({name:"lucy"},{$push:{like:"f"}})
+db.user.update({name:"lucy"},{$push:{like:"f"}})
+db.user.find({name:"lucy"},{_id:0})
+{ "name" : "lucy", "like" : [ "a", "b", "c", "d", "f", "f" ] }
+$addToSet 不可得复添加
+db.user.update({name:"lucy"},{$addToSet:{like:"f"}})
+db.user.update({name:"lucy"},{$addToSet:{like:"F"}})
+db.user.find({name:"lucy"},{_id:0})
+
+$pop
+db.user.update({name:"lucy"},{$pop:{like:-1}}) 删除头部1个元素
+db.user.update({name:"lucy"},{$pop:{like:1}})  删除尾部1个元素
+
+$pull 删除数组指定元素
+db.user.update({name:"licy"},{$pull:{like:"e"}})
+db.user.find({name:"lucy"},{_id:0})
+
+
+删除集合,文档
+db.集合名.remove({})
+db.集合名.remove({条件})
+db.user.drop
+db.user.remove({name:"meixi"})
+db.user.drop()
+
+++++++++++++++++++++++++++++++++++++++++++++++
+15天DBA 10k
+mysql(10day)
+前5day db1基础 db.user.remove({name:"meixi"})
+建表 数据类型 索引 外键 主键 存储引擎 事务(特点ACID)
+管理表记录: select 单表 多表(嵌套 连接 左右连接)
+ insert update delete 
+用户授权和权限撤销: grant revoke mysql库
+数据备份与恢复: mysqldump binlog日志 percona(innobackupex)
+图形管理工具:phpmyadmin naivcate
+后5day db2进阶
+主从同步
+数据读写分离 maxscale+主从同步
+高可用集群 mha+主从同步
+数据分片 mycat+数据服务器
+mysql优化 (网络连通性 软件本身 程序员 网络架构)
+mysql视图及存储过程
+
+5day nosql软件服务 
+redis  集群 主从 数据的基本管理 持久化AOF RDB
+mongodb 副本集 数据的基本管理 备份与恢复
+
+
+
+
+
+
+
+
+

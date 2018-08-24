@@ -1,0 +1,195 @@
+
+mget
+
+list  列表
+定义  输出值   删除值 添加新值
+
+hash 表  
+让定义变量可以存储多个key/values  key/values
+
+
++++++++++++++++++++++++++++++++++++++++++++
+在192.168.4.50主机上部署MongoDB数据库服务
+配置步骤：
+装包
+修改配置文件
+启动服务
+查看服务信息
+连接服务存储数据 mongo  127.0.0.1   27017
+
+
+> use studb
+> db
+> show tables
+> db.c1.save({name:"bob",age:19,sex:"girl"})
+> show tables
+> db.c1.save({name:"bob",class:"nsd1803"})
+> db.c1.find()
+
+> db.c1.count()
+> db.c1.insert({name:"lucy",class:"nsd1803"})
+> db.c1.findOne()
+> db.c1.find({name:"bob"})
+
+> db.c1.remove({name:"bob"})
+> db.c1.remove({})
+> db.c1.find()
+> show  tables
+> db.c1.drop()
+> show  tables
+
+管理数据库
+集合管理 
+文档管理  查看 插入 删除  修改
+
+MongoDB数据类型
+字符 数值  布尔  数组  空
+
+> db.c1.save({name:"bob",age:19,sigle:true})
+
+> db.c1.save
+
+({name:"lucy",age:18,sigle:true,pay:null})
+
+> db.c1.save({name:"bob",x:NumberInt(3)})
+> db.c1.save({name:"tom",x:NumberInt(3.99)})
+> db.c1.save({name:"jack",x:3.99})
+
+> db.c1.save({name:"yaya",bboy:["pyy","lyf","sxb"]})
+> db.c1.find()
+
+
+> db.c1.save({ 
+
+lname:"php", 
+
+代码
+codeformat : function(){/* <?php echo "hello world" 
+
+?> */  } 
+
+})
+
+function(){/*  代码  */}
+
+
+> db.c1.save({name:"lilei",birthday: new Date() })
+
+对象
+> db.c1.save({name:"alice",stuid:ObjectId()})
+
+> db.c1.find()
+
+
+内嵌类型
+> db.c1.save({ 
+ywzd:{p:"dmy",jg:69,v:2},
+ngsfc:{p:"birdg",jg:89,v:3}  
+})
+
+正则类型
+db.c1.save({ name:"hanmm" , match:/^a/ })
+
+
+
+
+
+数据导出 mongoexport  --help
+
+]# mkdir /mongdbdir
+
+]# mongoexport --host 192.168.4.50 --port 27050 -d 
+
+studb -c c1   --type=json  > /mongdbdir/c1.json
+
+]#cat /mongdbdir/c1.json
+
+
+
+]# mongoexport  --host 192.168.4.50 --port 27050 -d 
+
+studb  -c  c1  -f _id,name --type=csv  > 
+
+/mongdbdir/c1.csv
+
+
+
+数据导入 mongoimport --help
+
+mongoimport  --host 192.168.4.50 --port 27050 -d  
+
+bbsdb  -c  t1  --type=json  /mongdbdir/c1.json
+
+
+mongoimport  --host 192.168.4.50 --port 27050 -d  
+
+bbsdb  -c  t2  -f _id,name --type=csv  
+
+/mongdbdir/c1.csv
+
+
+# mongoimport  --host 192.168.4.50 --port 27050 -d  
+
+studb  -c  c1   --headerline --drop --type=csv 
+
+/mongdbdir/c1.csv
+
+
+17:15
+
+> db.c3.save({
+... name:"yaya",
+... password:"x",
+... uid:88888,
+... gid:99999,
+... comment:"teacher",
+... homedir:"/home/yaya",
+... shell:"/bin/bash"
+... })
+
+]# mongoexport  --host 192.168.4.50 --port 27050 -d 
+
+studb  -c  c3   \
+-f name,password,uid,gid,comment,homedir,shell \
+--type=csv  > /mongdbdir/c3.csv
+
+]# cat /mongdbdir/c3.csv
+
+[root@host50 mongdbdir]# cp /etc/passwd ./
+]# sed -i '$r passwd' c3.csv
+]# sed -i 's/:/,/g' c3.csv
+
+
+# mongoimport  --host 192.168.4.50 --port 27050 -d  
+
+studb  -c  c3   --headerline --drop --type=csv 
+
+/mongdbdir/c3.csv
+
+
+
+数据备份恢复
+[root@host50 mongdbdir]# mkdir /bakmongo
+
+[root@host50 mongdbdir]# mongodump  --host 
+
+192.168.4.50 --port 27050  -d studb -c c3  \
+-o /bakmongo
+
+]# ls /bakmongo/
+]# bsondump /bakmongo/studb/c3.bson
+
+> db.c3.remove({})
+
+[root@host50 mongdbdir]# mongorestore  --host 
+
+192.168.4.50 --port 27050  -d studb -c c3 
+
+/bakmongo/studb/c3.bson
+
+> db.c3.count()
+> db.c3.find()
+
+
+
+

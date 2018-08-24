@@ -1,0 +1,448 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           2018年7月23日
+rm -rf /data3307 /data3308
+重新初始化
+mysqld --user=mysql --basedir=/usr/local/mysql --datadir=/data3307 --initialize
+mysqld --user=mysql --basedir=/usr/local/mysql --datadir=/data3308 --initialize
+
+3307  6pxw>xsy(epC
+3308  aLa_)Rx%41f5
+
+启动服务
+[root@host50 ~]# ss -antupl | grep :3307
+[root@host50 ~]# mysqld_multi start 1
+[root@host50 ~]# ss -antupl | grep :3307
+tcp    LISTEN     0      80       :::3307                 :::*                   users:(("mysqld",pid=2500,fd=16))
+
+
+测试配置
+(起服务)
+mysql -uroot -p初始密码 -S  sock文件
+50 ~]# mysql -uroot -p'6pxw>xsy(epC' -S /data3307/mysql.sock
+mysql> alter user root@'localhost' identified by '123456';
+（停服务）
+50 ~]# mysqld_multi  --user=root --password=123456 stop 1
+50 ~]# ss -antupl | grep :3307
+50 ~]# 
+
+50 ~]# mysqld_multi start 2
+50 ~]# mysql -uroot -p'aLa_)Rx%41f5' -S /data3308/mysql.sock
+[root@host50 ~]# ss -antupl | grep :3308
+tcp    LISTEN     0      80       :::3308                 :::*                   users:(("mysqld",pid=3877,fd=16))
+[root@host50 ~]# mysqld_multi  --user=root --password=123456 stop 2
+[root@host50 ~]# ss -antupl | grep :3308
+
+优点 
+一台数据库服务器上跑两台数据库
+
+
+3309
+
+alter user user() identified by '123456'; (函数调用root@'localhost')
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++
+MYSQL性能调优
+软调优
+硬件优化：升级硬件
+
+影响服务器的性能的因素有哪些？
+网络带宽太窄（用测速软件）     解决方法   花钱买带宽
+服务器硬件配置低               解决方法    查看硬件的使用率        
+                                   CPU  内存  存储设备                      
+                                   top  free -m  转速 （不能低于15000/s）
+                                   uptime(数据越小越好，代务每分钟待处理的任务，越小代表CPU处理性能好)
+
+                                         固态硬盘  I/O(读/写)
+云主机  16CPU 128G 100T
+
+数据库服务软件版本低，导致性能低下
+
+mysql> show variables like '%password%';
++---------------------------------------+--------+
+| Variable_name                         | Value  |
++---------------------------------------+--------+
+| default_password_lifetime             | 0      |
+| disconnect_on_expired_password        | ON     |
+| log_builtin_as_identified_by_password | OFF    |
+| mysql_native_password_proxy_users     | OFF    |
+| old_passwords                         | 0      |
+| report_password                       |        |
+| sha256_password_proxy_users           | OFF    |
+| validate_password_check_user_name     | OFF    |
+| validate_password_dictionary_file     |        |
+| validate_password_length              | 8      |
+| validate_password_mixed_case_count    | 1      |
+| validate_password_number_count        | 1      |
+| validate_password_policy              | MEDIUM |
+| validate_password_special_char_count  | 1      |
++---------------------------------------+--------+
+
+vim /etc/my.cnf
+validate_password_length=6 
+validate_password_policy=0
+
+
+设置会影响服务性能参数的值
+并发连接数量 
+mysql>  show variables like "%conn%";
++-----------------------------------------------+-----------------+
+| Variable_name                                 | Value           |
++-----------------------------------------------+-----------------+
+| character_set_connection                      | utf8            |
+| collation_connection                          | utf8_general_ci |
+| connect_timeout                               | 10              |
+| disconnect_on_expired_password                | ON              |
+| init_connect                                  |                 |
+| max_connect_errors                            | 100             |
+| max_connections                               | 151             |
+| max_user_connections                          | 0               |
+| performance_schema_session_connect_attrs_size | 512             |
++-----------------------------------------------+-----------------+
+mysql> set global max_connections=300;
+曾经有过的做大连接数/并发连接数＝0.85*100％＝85
+
+
+连接超时时间：
+mysql> show variables like "%time%";
+connect_timeout 10（秒） 客户端与服务器建立时，3次握手的超时时间（过大的话就会遭到服务攻击）
+wait_timeout 28800（秒） 连接建立后，服务器等待客户输入sql命令的超时时间
+就是在进入mysql>后超过28800秒（8小时），就自动退出
+
+可以重复使用的线程数量
+mysql> show variables like "%thread%";
+ thread_cache_size    9
+
+所有线程打开表的数量
+mysql> show variables like "%table%";
+table_open_cache   2000
+
+绶存设置
+
+MYSQL服务体系结构
+管理工具：软件安装后，提供的管理命令
+连接池：检查服务器是否有资源响应客户端的连接请求
+SQL接口：把SQL命令传递给MYSQL程序
+分析器：检查用户执行的sql命令是否正确
+优化器：对执行的sql命令做优化
+查询缓存：存储曾经查找到的查询结果（存储空间是MYSQL服务启动时从主机的物理内存里划分出来的）
+存储引擎：表的处理器，不同的存储引擎支持不同的功能和数据存储方式myisam,mysql
+文件系统：数据服务用来存储数据的硬盘
+
+MYSQL服务处理查询请求的过程
+mysql> show variables like "%cache%";
+mysql> show variables like "query_cache_%";
++------------------------------+---------+
+| Variable_name                | Value   |
++------------------------------+---------+
+| query_cache_limit            | 1048576 |
+| query_cache_min_res_unit     | 4096    |
+| query_cache_size             | 1048576 |
+| query_cache_type             | OFF     |
+| query_cache_wlock_invalidate | OFF     |
++------------------------------+---------+
+查询缓存
+query_cache_wlock_invalidate | OFF 
+当客户端查询myisam存储引擎的表时，若此时有客户端对表执行写操作的话，数据库服务不好从查询缓存里查找结果返回给客户端，而是等写操作完成后，重新从表里查找数据返回个客户端。
+pc1   select name from user where name="bob";
+pc2   select name from user where name="bob";
+pc3   update user set name="lucy" where="bob";
+
+query_cache_type  |0|1|2 （0是禁用-->OFF）
+1 若查询结果没有超过缓存数据大小的设置，查询结果会自动存储到查询缓存里
+2 明确指定要把查询结果存储到查询缓存里且查询结果没有超出缓存数据大小的设置
+ query_cache_min_res_unit     | 4096 就是4k  太小1k会影响查询速度，太大10k会浪费存储空间         
+
+查询缓存统计信息
+mysql> show global status like "qcache%";
+| Qcache_hits      | 0   当前查询结果是在查询缓存里找到的，此变量值自动加1       
+| Qcache_inserts   | 0   在查询缓存里查找一次数据，此变量值自动加1
+看上与下的百分比“Qcache_hits”／”Qcache_inserts “   5／100就是低
+
+索引缓存
+mysql> show variables like "%key%";
+                     myisam 
+  select * from user;
+                     user.frm  user.MYI   user.MYD
+                                       存储排队信息 
+/var/lib/mysql/studb/
+mysql> show variables like " key_buffer_size";存放索引缓存信息
+Empty set (0.00 sec)
+mysql> explain select name from a9 where name="mysql"\G;  找973行
+mysql> time select name from a9 where name="mysql"\G;    （怎么统计搜索时间）
+mysql> create index name on a9(name); 
+mysql> explain select name from a9 where name="mysql"\G; 只找24行
+ key_buffer_size          | 8388608   myisam存放索引缓存信息
+
+程序员编写SQL查询命令复杂，导致数据库服务器处理慢。
+MYSQL服务日志的类型有4种：错误日志，binlog日志，查询日志，慢查询日志
+查询日志：记录执行的所有sql命令。默认没有启用
+]# vim /etc/my.cnf
+general-log
+:wq
+]# systemctl restart mysqld
+vim /var/lib/mysql/host51.log
+启用慢查询日志：记录超过超时时间显示查询结果的sql命令，默认没有启用。
+]# vim /etc/my.cnf
+slow-query-log
+:wq
+]# systemctl restart mysqld
+vim /var/lib/mysql/host51-slow.log
+
+mysql> select sleep(11),"name";(慢查询语法)
++-----------+------+
+| sleep(11) | name |
++-----------+------+
+|         0 | name |
++-----------+------+
+1 row in set (11.00 sec)
+]# mysqldumpslow /var/lib/mysql/host51-slow.log
+
+数据存储架构不合理：数据传输有甁颈；
+
+查看数据库所有己经定了的变量
+show variables;
+show variables  like "%xxx%";
+set global xxx=xxx;
+vim /etc/my.cnf
+[mysqld]
+
+查看服务器硬件的使用情况CPU 内存 硬盘
+网络带宽 eht0
+
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+
+部署高可用集群（MHA＋mysql（一主多从结构））至少2从
+准备步骤 6台机器 51—56
+56 管理主机（不需要运行数据库服务）
+51－55 数据库服务器 （只保留初始的4个库）
+拷贝包mha-soft-student
+yum -y install perl-*
+
+集群：使用多台服务器提供相同的服务
+集群类型：LB（负载均衡集群）  HA（高可用集群）主备模式   HPC（高计算集群）航空，天气预报
+高可用集群：
+
+高可用（4从2备主2从库）2备主库半同步，2从库异步
+
+准备环境
+拷贝包mha-soft-student
+yum -y install perl-* 
+51 ~]# ssh-keygen
+51 ~]# ssh-copy-id 192.168.4.52
+
+操作步骤查看MHA-mster-slave.txt
+
+
+
+
+set global relay_log_purge=off  关闭自动删除中继日志
+
+3.2.1.1配置数据库服务器（51－55）
+安装mha_node软件
+]# yum -y install perl-DBD-mysql
+]# rpm -ivh mha4mysql-node-0.56-0.el6.noarch.rpm 
+以上两步直接用YUM装mha4mysql-node-0.56-0.el6.noarch.rpm 会自动安装依赖包
+]# yum -y install mha4mysql-node-0.56-0.el6.noarch.rpm 
+
+部署host56
+]# tar -xf mha4mysql-manager-0.56.tar.gz 
+]# yum -y install perl-ExtUtils-*  perl-CPAN*
+]# perl  Makefile.PL
+]# make && make install
+]# echo $PATH
+/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin
+]# cp -r bin/ /root/
+]# ls /root/bin/
+编写管理主机服务的主配置文件
+]# mkdir /etc/mha_manager
+]# cd/root/mha-soft-student/mha4mysql-manager-0.56/samples
+]# cp conf/app1.cnf  /etc/mha_manager/
+]# vim /etc/mha_manager/app1.cnf
+  1 [server default]
+  2 manager_workdir=/var/log/masterha/app1     服务的工作目录
+  3 manager_log=/var/log/masterha/app1/manager.log  日志文件
+  master_ip_failover_script=/etc/mha_manager/master_ip_failover
+ssh_user=root
+ssh_port=22
+repl_user=repluser
+repl_password=123456
+user=root            (这个是连51-54主库数据库)
+password=123456
+[server1]
+hostname=192.168.4.51
+#port=3306
+candidate_master=1
+[server2]
+hostname=192.168.4.52
+candidate_master=1
+[server3]
+hostname=192.168.4.53
+candidate_master=1
+[server4]
+hostname=192.168.4.54
+no_master=1
+[server5]
+hostname=192.168.4.55
+no_master=1
+
+my $vip = '192.168.4.100/24';  # Virtual IP 
+my $key = "1";
+my $ssh_start_vip = "/sbin/ifconfig eth0:$key $vip";
+my $ssh_stop_vip = "/sbin/ifconfig eth0:$key down";
+
+解释
+/sbin/ifconfig/ eth0:1 192.168.4.100/24(这是邦多个IP)
+/sbin/ifconfig/ eth0:1 down
+
+在host51上授权，其它主机全同步
+mysql> grant all on *.* to root@'%' identified by '123456';
+
+host52,53要与51主库的repluser授权一样，没有就手动配
+mysql> grant replication slave on *.* to repluser@'%' identified by "123456";
+
+在主机51~55 做如下设置
+临时配置:mysql> saet globl relay_log_purge=off;
+(希望将 MySQL 的 relay log 多保留一段时间，比如用于高可用切换后的数据补齐)
+永久配置vim my.cnf
+ [mysqld]
+ relay_log_purge = 0
+:wq
+
+测试配置文件
+测试ssh配置
+]# masterha_check_ssh --conf=/etc/mha_manager/app1.cnf
+Tue Jul 24 14:16:06 2018 - [info] All SSH connection tests passed successfully.(这是51－56全部root无密码互联)
+测试主从同步配置
+]# masterha_check_repl  --conf=/etc/mha_manager/app1.cnf
+MySQL Replication Health is OK.
+
+把vip地址手动部署在当前主库192.168.4.51上
+/sbin/ifconfig/ eth0:1 192.168.4.100/24(这是邦多个IP)
+/sbin/ifconfig/ eth0:1 down
+
+]# ifconfig eth0:1 192.168.4.100/24
+]# ifconfig eth0:1
+eth0:1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 192.168.4.100  netmask 255.255.255.0  broadcast 192.168.4.255
+        ether 52:54:00:63:77:6b  txqueuelen 1000  (Ethernet)
+
+报错 reloy-log=1 是因为52，53没有配repluser没配同步用记，只有51有，故要手动配
+
+mansterha_manager --conf=/etc/mha_manager/app1.conf  --remove_dead_master_conf  --ignore_last_failover
+
+#--remove_dead_master_conf    该参数代表当发生主从切换后，老的主库的ip将会从配置文件中移除
+#--ignore_last_failover   在缺省情况下，如果MHA检测到连续发生宕机，且两次宕机间隔不足8小时的话，则不会进行Failover(加了后不用等8个小时后可以修复宕机的机子直接连回)
+
+
+tty1 [root@host56 ~]# masterha_manager --conf=/etc/mha_manager/app1.cnf  --remove_dead_master_conf  --ignore_last_failover
+Tue Jul 24 15:54:29 2018 - [warning] Global configuration file /etc/masterha_default.cnf not found. Skipping.
+Tue Jul 24 15:54:29 2018 - [info] Reading application default configuration from /etc/mha_manager/app1.cnf..
+
+tty2 [root@host56 ~]# masterha_check_status --conf=/etc/mha_manager/app1.cnf
+app1 (pid:7242) is running(0:PING_OK), master:192.168.4.51
+
+3.3测试集群配置
+host50：]# mysql -uqq1 -p123qqq...A -h192.168.4.100
+mysql> select @@hostname;
++------------+
+| @@hostname |
++------------+
+| host51     |
+
+测试高可用
+把主库51的数据库服务停止，但客户端访问数据库连接不会断，查看主机名显示的是52主机的主机名；在52主机查看VIP地址也能够查看到ifconfig eth0:1有192.168.4.100ip地址。
+[root@host51 ~]# systemctl stop mysqld
+（host56）mysql> select @@hostname;
++------------+
+| @@hostname |
++------------+
+| host52     |
++------------+
+[root@host52 ~]# ifconfig eth0:1
+eth0:1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 192.168.4.100  netmask 255.255.255.0  broadcast 192.168.4.255
+        ether 52:54:00:47:dd:fe  txqueuelen 1000  (Ethernet)
+
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+51坏了，要赶快补回来。目前是用52作主库工作，如果52未处理好，别一备主库53再坏了，这个集群就不工作了。要时刻保证有两个备主库，要不只有一个的话VIP地址没目标切换
+
+把坏掉的主机51添加到集群里
+[root@host51 ~]# systemctl start mysqld
+mysql> change master to master_host="192.168.4.52",master_user="repluser",master_password="123456",master_log_file="master52.000002",master_log_pos=1565;
+mysql> start slave;
+mysql> show slave status\G;
+   Slave_IO_Running: Yes
+   Slave_SQL_Running: Yes
+
+把51主机
+
+＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
+总结
+部署集群环境：一主多从 主从同步结构
+在做主机的主机上 开启半同步复制且设置不自动删除中继日志文件
+配置ssh秘钥对认证登陆
+所有主机上都要安装软件依赖的perl软件包
+
+配置集群
+1配置数据库服务器：安装mha_node软件包
+2配置管理主机
+2.1安装软件包：mha_node和mha_manager
+2.2创建管理命令
+2.3编写主配置文件app1.cnf
+2.4根据配置文件的设置
+在数据库服务器上创建用户
+在本机创建故障切换脚本，并修改脚本指定VIP部署的网络接口名
+2.5测试主配置文件app1.cnf
+测试ssh服务 masterha_check_ssh --conf=
+测试主从同步masterha_check_repl --conf=
+2.6手动把规定的VIP地址部署在当主库51上
+2.7启动管理服务并查看状态
+
+三、测试集群
+3.1访问集群存储数据
+mysql -uqq1 -p123456 -hVIP地址
+mysql> select @@hostname;
+3.2测试高可用
+
+四、把坏掉的主机51添加到集群里
+51]# systemctl start mysqld
+56]# 在主配置文件app1.cnf里添加主机51的配置信息
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
