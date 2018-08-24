@@ -1,4 +1,4 @@
-在官网注册帐号和创一个新仓库，点public和initialize初始化
+﻿在官网注册帐号和创一个新仓库，点public和initialize初始化
 帐号lituxiu 密码x159001
 
 教程https://blog.csdn.net/zengqujia1720/article/details/71123300
@@ -82,6 +82,17 @@ compression = -1
 error: RPC failed; result=55, HTTP code = 200
 原因可能是由于网络不好,再git push origin master解决
 
+问题三（服务器仓库存在本地仓库没有的文件）
+$ git push origin master
+To https://github.com/lituxiu/1804-git.git
+ ! [rejected]        master -> master (non-fast-forward)
+error: failed to push some refs to 'https://github.com/lituxiu/1804-git.git'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. Integrate the remote changes (e.g.
+hint: 'git pull ...') before pushing again.
+解决：
+先 git  pull origin master
+后 git push origin master
 
 ＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
 git客户端
