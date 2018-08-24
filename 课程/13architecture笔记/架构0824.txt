@@ -97,3 +97,85 @@ ansible51 ~]# ansible web52 -m setup |grep ansible_os_family
         "ansible_os_family": "RedHat"
 
 
++++++++++++++++++++++++++++++++++
+day02 新内容
+json是什么?
+json 是 JavaScript 对象表示法,它是一种基亍文本,
+独立亍诧言的轻量级数据交换格式
+"漂亮姐":"庞丽静" --->"键":"值"
+
+json数组
++++++++++++
+yaml是什么?是一个可读性高,用杢表达数据序列的格式
+(注意,千万别用tab键,否则排错时,不知道是空格还tab的)
+
++++++++++++++
+jinja2模块是什么? (其过滤器类似管道)
+ ~]# echo 123456 | md5sum
+f447b20a7fcbf53a5d5be013ea0b15af  -
+
++++++++++++++++++++++++++++++++++++++++++
+!!!!!重点语法
+playbook
+
+ansible Target Tasks
+
+vim ping.yml
+---
+- hosts: all
+  remote_user: root
+  tasks:
+   - ping:
+(注意格式,第一个-和第二个-要隔4空个(从左开始算-   -)),还有:后有空格)
+
+ansible-playbook myping.yml -f 5
+
+---
+- hosts: all
+  remote_user: root
+  tasks:
+   - name : create user plj
+     user:group=wheel uid=1000 name=plj
+   - shell: adduser plj
+   - shell: echo 123456 |passwd --stdom plj
+   - shell: chage -d 0 plj
+ 
+
+练习•编写 playbook 实现以下效果
+– 安装 apache
+– 修改 apache 监听的端口为 8080
+– 为 apache 增加 NameServer 配置
+– 设置默认主页 hello world
+– 启动服务
+– 设置开机自启动
+vim /root/httpd.yml
+---
+- hosts: web
+  remote_user: root
+  tasks:
+    - name: install the latest version of Apache
+      yum:
+        name: httpd
+        state: installed
+    - lineinfile:
+        path: /etc/httpd/conf/httpd.conf
+        regexp: '^Listen'
+        line: 'Listen 168'
+    - lineinfile:
+        path: /etc/httpd/conf/httpd.conf
+        regexp: '^#ServerName'
+        line: 'ServerName localhost'
+    - copy:
+        src: /root/index.html
+        dest: /var/www/html/index.html
+        owner: apache
+        group: apache
+        mode: 0644
+    - service:
+        name: httpd
+        state: started
+        enabled: yes
+
+
+
+

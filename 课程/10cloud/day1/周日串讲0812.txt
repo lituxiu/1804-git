@@ -1,0 +1,294 @@
+udev
+multipath
+lvs+keepalived
+
+一.UDEV 动态管理设备文件的方法(可以改硬盘,网卡等)
+１.将虚拟机vdb硬盘的权限从默认的660改为664(注意区分大小写)
+vim /etc/udev/rules.d/90-vdisk.rules
+ACTION=="add" ,  KERNEL=="vdb" , MODE="664",OWNER="root",GROUP="root"
+
+~]# systemctl restart systemd-udev-trigger
+
+说明：匹配条件用==赋值用=。
+ACTION==“add”意思是添加新设备。UDEV规则是设备连接到系统或移除的时候生效。
+KERNEL==“vdb”意思,没有人为干预，内核识别出来的设备名。
+MODE=“664”表示赋值，权限改为664
+重启系统，测试规则是否生效。
+2.继续修改，对于vdb和它的分区，要创建快捷方式叫vdisk*
+vim/etc/udev/rules.d/91~vdisk2
+ACTION=="add",KERNEL=="vdb[1-9]",SYMLINK+="vdisk%n"
+:SYMLINK表示创建软链接；+=表示额外创建；%n表示分区号
+parted /dev/vdb
+mklabel gpt
+mkpart primary 1M 10%
+quit
+
+ll /dev/vdb1
+ll /dev/vdisk1
+
+3.查看设备属性
+(1)查看设备文件在/sys/目录下的路径
+udevadm info --query=part --name=/dev/vdb1
+
++++++++++++++++++++++++++++++++++++++++++++++++++
+用nmtui配eth0时,记得要把下面的Automatically connect点上
+
+iscsi
+在node21添一个新硬盘
+node21 ~]# yum -y install targetcli
+node21 ~]# targetcli
+/> /backstores/block create  nsd1804 /dev/vdb
+/> iscsi/ create iqn.2018-08.cn.tedu.nsd1804
+/> iscsi/iqn.2018-08.cn.tedu.nsd1804/tpg1/luns create /backstores/block/nsd1804 
+/> iscsi/iqn.2018-08.cn.tedu.nsd1804/tpg1/acls create iqn.2018-08.cn.tedu.node2
+/> saveconfig
+/> ls
+o- / ................................................... [...]
+  o- backstores ........................................ [...]
+  | o- block ............................ [Storage Objects: 1]
+  | | o- nsd1804 ... [/dev/vdb (10.0GiB) write-thru activated]
+  | |   o- alua ............................. [ALUA Groups: 1]
+  | |     o- default_tg_pt_gp . [ALUA state: Active/optimized]
+  | o- fileio ........................... [Storage Objects: 0]
+  | o- pscsi ............................ [Storage Objects: 0]
+  | o- ramdisk .......................... [Storage Objects: 0]
+  o- iscsi ...................................... [Targets: 1]
+  | o- iqn.2018-08.cn.tedu.nsd1804 ................. [TPGs: 1]
+  |   o- tpg1 ......................... [no-gen-acls, no-auth]
+  |     o- acls .................................... [ACLs: 1]
+  |     | o- iqn.2018-08.cn.tedu.node2 ...... [Mapped LUNs: 1]
+  |     |   o- mapped_lun0 ......... [lun0 block/nsd1804 (rw)]
+  |     o- luns .................................... [LUNs: 1]
+  |     | o- lun0  [block/nsd1804 (/dev/vdb) (default_tg_pt_gp)]
+  |     o- portals .............................. [Portals: 1]
+  |       o- 0.0.0.0:3260 ............................... [OK]
+  o- loopback ................................... [Targets: 0]
+
+
+
+
+
++++++++++++++++++++++++++++++++++++++++++++++
+多路径
+因为node2有两条路径可以到达node1的共享存储,这样出现了sda和sdb,node2使用sda,如果sda出现故障,它也不会自动的切换到sdb,为了使得node2可以灵活使用的使用共享存储,可以通过多路径的配置
+
+node22 ~]# yum -y install device-mapper-multipath
+生成配置文件
+node22 ~]# mpathconf --user_friendly_names n
+node22 ~]# ls /etc/multipath.conf 
+/etc/multipath.conf
+修改配置文件
+查看uuid
+node22 ~]# /lib/udev/scsi_id --whitelisted --device=/dev/sdb
+3600140571e092a63dc74412af83b9d03
+修改配置文件
+node22 ~]# vim /etc/multipath.conf
+multipaths{
+  multipath{
+  wwid 3600140571e092a63dc74412af83b9d03
+  alias daxiuge8
+  }
+}
+:wq
+node22 ~]# systemctl restart multipathd
+
+multipath -rr (这命令是识别一下)
+
+++++++++++++++++++++++++++++++++++++++++++++++++++
+mariadb-server是服务器,mariadb只是客户端
+
+搭配LAMP分离web服务
+node21 ~]# yum -y install mariadb-server
+node21 ~]# systemctl start mariadb
+node21 ~]# systemctl enable mariadb
+MariaDB [(none)]> grant all on *.* to admin@"%" identified by '123';
+
+node22 ~]# yum -y install httpd php php-mysql
+node22 ~]# systemctl start httpd
+node22 ~]# systemctl enable httpd
+node22 ~]# unzip Discuz_X3.3_SC_UTF8.zip
+node22 ~]# cp -r upload /var/www/html/bbs
+node22 ~]# chown -R apache.apache /var/www/html/bbs
+node22 ~]# firefox 192.168.4.2/bbs
+设置Discuz论坛安装完
+再去node22 ~]# firefox 192.168.4.2/bbs
+管理中心  论坛  
+
+node23(192.168.4.3)
+node23 ~]#yum -y install httpd php php-mysql
+node23 ~]#systemctl restart httpd
+node23 ~]#systemctl enable httpd
+node23 ~]#systemctl status httpd
+node22 ~]# tar czf bbs.tar.gz /var/www/html/bbs/
+node22 ~]# scp bbs.tar.gz  192.168.4.3:/var/www/html/
+node23 ~]#firefox 192.168.4.3/bbs
+
+++++++++++++++++++++++++++++++++++
+二.集群
+1. 集群分类
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  HPC 高性能计算
+LB 负载均衡
+HA 高可用
+
++++++++++++++++++++++++++++++++=
+lo环回网卡 192.168.4.100/32  (32的字网掩码是255.255.255.255)
+如果配成192.168.4.100/24的话,基它主机再配4.0网段配不上了,显示已被使用
+
+node24 ~]# cp /etc/sysconfig/network-scripts/ifcfg-eth0{,:0}
+node24 ~]# vim /etc/sysconfig/network-scripts/ifcfg-eth0:0
+NAME=eth0:0
+DEVICE=eth0:0
+IPADDR=192.168.4.100
+node24 ~]# nmcli con up eth0  (或ifup eth0:0)
+node24 ~]# ifconfig eth0
+node24 ~]# ifconfig eth0:0
+
+临时设置内核参数
+node22 ~]# echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore
+node22 ~]# echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce 
+node22 ~]# cp /etc/sysconfig/network-scripts/ifcfg-lo{,:0}
+node22 ~]# vim /etc/sysconfig/network-scripts/ifcfg-lo:0
+DEVICE=lo:0
+IPADDR=192.168.4.100
+NETMASK=255.255.255.255
+NETWORK=192.168.4.100
+BROADCAST=192.168.1.100
+ONBOOT=yes
+NAME=lo:0
+:wq
+查看永久配置的
+node22 ~]# sysctl -a | grep arp_ig
+net.ipv4.conf.all.arp_ignore = 1
+net.ipv4.conf.default.arp_ignore = 0
+net.ipv4.conf.eth0.arp_ignore = 0
+net.ipv4.conf.eth1.arp_ignore = 0
+net.ipv4.conf.eth2.arp_ignore = 0
+net.ipv4.conf.eth3.arp_ignore = 0
+net.ipv4.conf.lo.arp_ignore = 0
+net.ipv4.conf.virbr0.arp_ignore = 0
+net.ipv4.conf.virbr0-nic.arp_ignore = 0
+
+永久配置内核参数
+node22 ~]# echo "net.ipv4.conf.all.arp_ignore=1" >> /etc/sysctl.conf
+[root@node22 ~]# echo "net.ipv4.conf.lo.arp_ignore=1" >> /etc/sysctl.conf
+[root@node22 ~]# echo "net.ipv4.conf.lo.arp_announce=2" >> /etc/sysctl.conf
+[root@node22 ~]# echo "net.ipv4.conf.all.arp_announce=2" >> /etc/sysctl.conf
+[root@node22 ~]# sysctl -p
+net.ipv4.conf.all.arp_ignore = 1
+net.ipv4.conf.lo.arp_ignore = 1
+net.ipv4.conf.lo.arp_announce = 2
+net.ipv4.conf.all.arp_announce = 2
+验证负载均衡
+[root@node21 ~]# curl 192.168.4.100
+222   //node22的网页内容
+[root@node21 ~]# curl 192.168.4.100
+333   //node23的网页内容
+(某一台内核参数为0还可以负载均衡?)
+
+++++++++++++++++++++++++++++++++++++++
+keepalived实现lvs的高可用
+1.keepalived简单来说,就是提供一个浮动的IP
+2.keepalived与lvs连用,它还可以为lvs配置规则,可以监控后端real server,如果real server出现故障,把它从规则中移除,当
+
+node24 ~]# yum -y install keepalived
+node24 ~]# vim /etc/keepalived/keepalived.conf 
+! Configuration File for keepalived
+global_defs {
+   notification_email {
+     root@localhost
+   }
+   notification_email_from admin@123
+   smtp_server 127.0.0.1
+   smtp_connect_timeout 30
+   router_id LVS_DEVEL
+   vrrp_skip_check_adv_addr
+ # vrrp_strict
+   vrrp_garp_interval 0
+   vrrp_gna_interval 0
+}
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    virtual_router_id 51
+    priority 150
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+     192.168.4.100
+    }}
+virtual_server 192.168.4.100 80 {
+    delay_loop 6
+    lb_algo rr
+    lb_kind DR
+    persistence_timeout 50
+    protocol TCP
+    real_server 192.168.4.2 80 {
+        weight 1
+        TCP_CHECK {
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }}
+ real_server 192.168.4.3 80 {
+        weight 1
+        TCP_CHECK {
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }}
+}
+起服务
+node24 ~]# systemctl start keepalived
+从node24拷贝一份给node25主机
+node24 ~]# scp /etc/keepalived/keepalived.conf 192.168.4.5:/etc/keepalived/
+
+node25 ~]# vim /etc/keepalived/keepalived.conf
+改state  ---> BACKUP
+改priority ---> 100
+:wq
+查看eth0网卡
+node25 ~]# ip a s eth0
+node24 ~]# ipvsadm
+TCP  node24:http rr persistent 50 (主服务)
+  -> 192.168.4.2:http             Route   1      0          3         
+  -> 192.168.4.3:http       
+node25 ~]# ipvsadm                  
+TCP  192.168.4.100:http rr persistent 50 (备用服务)
+  -> 192.168.4.2:http             Route   1      0          0         
+  -> 192.168.4.3:http             Route   1      0          0  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

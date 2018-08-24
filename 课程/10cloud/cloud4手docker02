@@ -1,0 +1,318 @@
+2018年8月22日
+docker day02
+-i 开启了input(输入)功能 -t开启了一个连接容器里边的terminal(终端)
+一般是-it一起连用
+修改nginx容器的主页
+~]# systemctl status docker
+~]# docker images
+docker01 ~]# docker run -it nginx /bin/bash
+e2bcbb92473c:/# nginx -t
+e2bcbb92473c:/# nginx -h  查看help帮助
+e2bcbb92473c:/# find  / -name nginx
+/etc/default/nginx
+/etc/init.d/nginx
+/etc/logrotate.d/nginx
+/etc/nginx
+/usr/lib/x86_64-linux-gnu/perl5/5.20/auto/nginx
+/usr/lib/nginx
+/usr/sbin/nginx
+/usr/share/doc/nginx
+/usr/share/lintian/overrides/nginx
+/usr/share/nginx
+/var/cache/nginx
+/var/log/nginx
+找到页面位置,重定向改"daxiuge888"
+cat >/index.html  <<EOF  看视频
+EOF
+++++++++++++++++++
+自定义镜像
+docker commit id 镜像名 保存一个容器为镜像
+(在容器中进行的配置修改,想永久保存的話,可以在容器未退出前幵多一个终端来commit生新一个新镜像,另一方法是通过Dockerfile)
+/]#echo "[daxiuge888]
+name=CentOS-daxiuge-7.4
+baseurl=http://192.168.1.254/CentOS7-1708
+gpgcheck=0
+enalbed=1" >daxiuge888.repo
+/]#yum -y install vim-enhanced net-tools (vim和ifconfig)
+exit
+~]# docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+77e11e2c79b2        centos              "bash"              6 minutes ago       Up 6 minutes 
+退出容器,另存为另一个镜像(配置了yum和vim,ifconfig)
+[root@docker01 ~]# docker commit 77e11e2c79b2 daxiuge888
+sha256:6aced353b5366e2f145c35cae1bdc035a15ee935ba66de755d63c7c0ec386eda
+[root@docker01 ~]# docker images  查看镜像列表多了一个daxiuge888镜像
+
+方法二,通过Dockerfile语法格式 
+• Dockerfile语法格式
+– FROM:基础镜像
+– MAINTAINER:镜像创建者信息
+– EXPOSE:开放的端口
+– ENV:设置变量
+– ADD:复制文件到镜像
+– RUN:制作镜像时执行的命令,可以有多个
+– WORKDIR:定义容器默认工作目录
+– CMD:容器启动时执行的命令(类似systemctl),仅可以有一条CMD
+类似开始自启动的服务,CMD生效不了,在环境手动启后才行.但是手动启动后,docker commit id 新镜像名建立后再run那个开机自启的服务也是要手动启动????????
+
+cat /root/Dockerfile
+FROM centos:latest
+RUN  rm -f /etc/yum.repos.d/*
+ADD  daxiuge.repo  /etc/yum.repos.d/r.repo  //daxiuge.repo要复制到当前目录/root下 
+RUN yum install -y  vim-enhanced net-tools
+
+制定自定义镜像
+                         (新镜像名)
+~]# docker build -t bdf  .(当前目录下)  --->进行以上内容操作
+Complete!
+ ---> 14ab7fb7f7b9
+Removing intermediate container ba4bddb445f8
+Successfully built 14ab7fb7f7b9
+
+容器里:
+yum search openssh   --->yum -y install openssh
+echo 11|passwd --stdin root
+systemctl start sshd 报错(因为容器里没有systemd)
+cd /usr/lib/systemd/system ---->cat sshd.service
+[service]
+en
+ex       $OPTION
+ex三行有用
+sshd-keygen 给本机公钥私钥 有这个sshd服务才能起
+ssh-keygen给客户端公钥私钥
+
+同一个MAC地址有两个公钥冲突,就重定向删除即可
+cat >cat .ssh/known_hosts
+
+封装ssh应用包
+~]#cat sshdockerfile
+FROM daxiuge888
+RUN yum install -y openssh-server
+RUN echo 11 |passwd --stdin root
+RUN sshd-keygen
+ENV EnvironmentFile=/etc/sysconfig/sshd
+CMD ["/usr/sbin/sshd", "-D"]
+~]# docker build -t bdf .
+
+用途:docker打包应用环境,封装应用镜像,应用程序交互
+FROM daxiuge888
+RUN yum -y install httpd
+RUN echo daxiuge888 >/var/www/html/index.html 或WORKDIR /var/www/html 
+RUN echo "daxiuge888" > index.html (WORKDIR是永久切换哪个目录)
+#RUN yum -y install libcurl.i686
+ENV EnvironmentFile=/etc/sysconfig/httpd 设定环境变量
+#EXPOSE 80  监听端口
+CMD ["/usr/sbin/httpd", "-DFOREGROUND"]  默认启动命令,只能有一条
+
+FROM daxiuge888
+RUN  yum install -y httpd
+WORKDIR /var/www/html
+RUN  echo "daxiuge888" >index.html
+ENV  EnvironmentFile=/etc/sysconfig/httpd
+EXPOSE 80
+CMD  ["/usr/sbin/httpd", "-DFOREGROUND"]
+
+!!!注意
+问题:httpd服务没启动?????
+原因:是因为我启动容器的时候是用 docker run -it httpd:latest bash
+解决命令 ~]# docker run -d httpd:latest //-d是放在后台启动不用进容器里
+-i 开启了input(输入)功能 -t开启了一个连接容器里边的terminal(终端)
+
+sed -nr '/ServerName www.(.*)/p' /etc/httpd/conf/httpd.conf 
+ServerName www.example.com:80
+
+删除镜像时,先删除容器,再删镜像
+++++++++++++++++++++++++++++++
+自定义仓库
+docker run -d -p 5000:5000 registry  //记
+docker tag 镜像 IP:5000/镜像:label
+docker push IP:5000/镜像:label
+
+https:// v1/ping  配置文件错
+
+
+开始创建
+docker01 ~]# cat /etc/docker/daemon.json
+{
+  "insecure-registries" : ["192.168.1.11:5000"]
+}
+docker01 ~]# docker run -d -p 5000:5000 registry
+60cf0b192259a370e1518cbbc9218a5bb5a755468d079751e8376e79158c457d
+
+docker01 ~]# docker tag daxiuge888:latest 192.168.1.11:5000/daxiuge888:latest
+上传成功
+docker01 ~]# docker push 192.168.1.11:5000/daxiuge888:latest
+The push refers to a repository [192.168.1.11:5000/daxiuge888]
+c969eb97490f: Pushed 
+43e653f84b79: Pushed 
+latest: digest: sha256:4701a290e9382205ac0a5483b872e8f51df1852fd3ab791ecbfea636066f1e43 size: 741
+
+客户端查看服务端镜像
+[root@docker02 ~]# curl http://192.168.1.11:5000/v2/_catalog
+{"repositories":["daxiuge888"]}  查看镜像个数
+[root@docker02 ~]# curl http://192.168.1.11:5000/v2/daxiuge888/tags/list  查看镜像的标签
+{"name":"daxiuge888","tags":["latest"]}
+
+++++++++++++++++++++
+持久化存储(存储卷)
+卷的概念
+docker容器不保持任何数据
+重要数据请使用外部卷存储(数据持久化)
+容器可以挂载真实机目录或共享存储为卷
+
+nfs ~]# yum -y install nfs-utils
+nfs ~]# vim  /etc/exports
+/daxiuge888    *(rw,no_root_squash
+:wq
+nfs ~]# systemctl start nfs
+nfs ~]#systemctl enable nfs
+nfs ~]# systemctl start rpcbind
+nfs ~]#systemctl enable rpcbind
+nfs ~]# showmount -e localhost
+Export list for localhost:
+/daxiuge888 *
+
+docker02 ~]#yum -y install nfs-utils
+docker02 ~]#systemctl start nfs
+docker02 ~]##systemctl enable nfs
+docker02 ~]#systemctl status rpcbind
+docker02 ~]#systemctl restart rpcbind
+docker02 ~]# showmount -e 192.168.1.13
+Export list for 192.168.1.13:
+/daxiuge888 *
+docker02 ~]#mkdir /abc
+docker02 ~]# mount 192.168.1.13:/daxiuge888 /abc
+(中间遇到iptables规则问题,iptables -F即可解决)
+docker02 ~]# ls /abc/
+docker02 ~]# touch /abc/daxiuge88
+在nfs端验证成功nfs ~]# ls /daxiuge888/  --->daxiuge88
+
+存储卷映射(容器跟真机上的文件是同一个的,可以实现NFS同步)
+docker run -itd -v 物理机文件夹:容器内文件夹 镜像:标签
+docker01 ~]# df -h
+192.168.1.13:/daxiuge888  8.0G  1.1G  7.0G   14% /abcd
+docker01 ~]# docker run -v /abcd:/abcd -it daxiuge888 bash
+进入容器建一个文档[root@742eca2c4108 /]# touch abcd/8888
+验证实现nfs文件同步nfs ~]# ls /daxiuge888/
+8888  daxiuge88
+
+++++++++++++++++++++++++++++
+Docker网络架构
+创建虚拟网卡eth0:1
+改网卡名,IP地址,删eth0:1的网关(同一张网关只能用一个网关)
+systemctl restart network
+ifconfig -->eth0 和eth0:1
+docker创建虚拟网桥(虚拟交换机),vbr就是手动创建但不方便
+yum -y install bridge-utils
+]# vim  /etc/sysconfig/network-scripts/ifcfg-br0 
+DEVICE=br0
+ONBOOT=yes
+NM_CONTROLLED=no
+TYPE=Bridge
+BOOTPROTO=static
+IPADDR=192.168.1.111
+PREFIX=24
+#GATEWAY=192.168.1.254
+:wq
+]#systemctl restart network
+]# brctl show
+bridge name	bridge id	
+br0         8000.000000000000
+(以上虽然创建网桥了,但是docker还不承认)
+~]# docker network list --->默认3类bridge,host,none
+~]# docker network create --subnet 192.168.100.0/24 docker1
+~]# docker network list  -->bridge,host,none,docker1多出一个(docker1)
+NETWORK ID          NAME  
+20aed5917ea9        docker1 
+~]# ifconfig  -->看到以下的网卡就是docker1(id号为20aed5917ea9)
+br-20aed5917ea9: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        inet 192.168.100.1  netmask 255.255.255.0  broadcast 0
+(只有docker才识别docker1网卡的名字)
+docker run -it --network docker1 daxiuge888
+/]# ifconfig
+eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 192.168.100.2
+/]# ping 172.17.0.1  //能ping通(docker的虚拟交换机,所有子网都通)
+/]# ping 172.17.0.6  //ping别一台运行的容器的ip不通(这样了反应出虚拟网卡起隔离作用(子网隔离,不是交换机隔离),想要两台容器互通就必须在同一台虚拟交换机上)
+交换机隔离子网
++++++++++++++++++++++++++++++++++++++
+端口复用
+容器就是快速搭配应用环境
+
+先把占用端口80的容器给停了
+[root@docker01 ~]# docker ps | awk '{print $1}'
+CONTAINER
+a0d2b4aa843f
+8f4e88f6ede3
+47819cb3c29d
+0676f0bc28f9
+[root@docker01 ~]# for i in `docker ps | awk '{print $1}'`
+> do
+> docker stop $i
+> done
+Error response from daemon: No such container: CONTAINER
+a0d2b4aa843f
+8f4e88f6ede3
+47819cb3c29d
+0676f0bc28f9
+删除所有容器
+[root@docker01 ~]# for i in `docker ps -a | awk '{print $1}'`; do docker rm $i; done
+Error response from daemon: No such container: CONTAINER
+84b04b25ddc7
+2b78c056e96b
+a0d2b4aa843f
+e44cb3789f31
+(!!!注意:docker停止和删除容器时都会出现"Error response from daemon: No such container: CONTAINER"提示)
+
+
+
+存储卷映射
+docker run -itd -v 物理机文件夹:容器内文件夹 镜像:标签
+
+创建虚拟交换机
+docker network create --driver=bridge --subnet 192.168.100.0/24 docker1
+创建一个新的容器，使用新的交换机
+docker run -it --network=docker1 myos
+
+创建容器，使用宿主机的端口 -p 宿主机端口:容器端口
+docker run -d -p 80:80 -v /var/webroot:/var/www/html 192.168.1.11:5000/myos:httpd
+
+-d后台进程
+-p把物理机的80端口映射给容器的80端口,让容器复用真机端口
+
+这命令无效果(8月21日下午211分钟)
+docker02 ~]# docker ps -q  //-q只看connect id
+dd9e9caccee9
+f5765e19d4d8
+
+docker02 ~]# docker run -d -p 888:80 httpd:latest
+6bb74bfba2d2a30972b1695b9ec32444646405524f2e0a6db45b47717b26485f
+docker01 ~]# curl 192.168.1.22:888 //访问成功
+daxiuge888
+
+docker02 ~]# docker run -d -v /var/data:/var/www/html/ -p 80:80 192.168.1.11:5000/httpd (为什么成功不了)
+
+简历面试 
+对简历上的技术点自信
+redi0 1 5
+查系统内存,cpu,负载,防火墙
+oracre备份 增删改查 多表查询
+tomcat深
+awk sed 
+
+
+1 127     10.0.0.1  10.255.255.254
+128 191   172.16.0.1  172.32.255.254
+192 223   192.168.0.1  192.168.255.254
+224 239
+240 254
+
+
+
+
+
+
+
+
+
+

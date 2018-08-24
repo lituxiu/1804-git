@@ -1,6 +1,9 @@
 ?t15,t16
 T5,T14,
 
+stty -echo 去显显示(在屏幕上看不到字母的输入)
+stty echo 恢复正常显示
+
 RANDOM函数
 shell有一个环境变量RANDOM,范围是0--32767
 如果我们想要产生0-25范围内的数：$(($RANDOM%26))

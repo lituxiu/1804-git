@@ -1,0 +1,206 @@
+环境检查
+ip地址
+主机node1rq  18 28
+主机node2  58 68
+sestatus 检查 selinux是否关闭
+node1 ~]# sestatus 
+SELinux status:                 disabled
+查两个软件是否删除了 
+rpm -qa | grep -P "firewalld|NetworkManager"
+
++++++++++++
+10731yum
+(装YUM包10791 那个9000的要用公钥,gpgchenk=1)
+安装 openstack
+1、配置卷组，安装依赖软件包
+yum install -y lvm2
+pvcreate /dev/vdb
+vgcreate cinder-volumes  /dev/vdb
+vgs
+
+yum install -y qemu-kvm \
+libvirt-daemon libvirt-client libvirt-daemon-driver-qemu \
+python-setuptools
+
+创建安装 openstack 的应答文件
+yum install -y openstack-packstack
+packstack --gen-answer-file=answer.ini
+
+vim answer.ini
+编辑应答文件 answer.ini
+配置默认密码
+11:  CONFIG_DEFAULT_PASSWORD=Taren1
+设置禁用 swift (对象存储) 模块
+42:  CONFIG_SWIFT_INSTALL=n
+NTP 服务器地址
+75:  CONFIG_NTP_SERVERS=192.168.1.254
+计算节点IP地址
+98:  CONFIG_COMPUTE_HOSTS=192.168.198
+需要配置vxlan网络的 IP 地
+102: CONFIG_NETWORK_HOSTS=192.168.1.19
+禁用自动创建 cinder-volumns 卷组
+554: CONFIG_CINDER_VOLUMES_CREATE=n
+设置网络支持协议
+840: CONFIG_NEUTRON_ML2_TYPE_DRIVERS=flat,vxlan
+设置组播地址
+876: CONFIG_NEUTRON_ML2_VXLAN_GROUP=239.1.1.5
+设置虚拟交换机
+910: CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=physnet1:br-ex
+设置虚拟交换机所连接的物理网卡
+921: CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:eth0
+设置隧道网络使用的网卡
+936: CONFIG_NEUTRON_OVS_TUNNEL_IF=eth1
+禁用测试的DEMO
+1179:CONFIG_PROVISION_DEMO=n
+
+3、安装 openstack
+安装
+packstack --answer-file=answer.ini
+
+注意:
+Testing if puppet apply is finished: 192.168.1.18_controller.p(这个指针在转有时个是正常,有时候是错误)
+
+问题一
+Error: /Stage[main]/Mysql::Server::Service/Service[mysqld]: Could not evaluate: Cannot allocate memory - fork(2) //这是反应无法分配内存
+删除临时内存rm -rf  /tmp/*
+查看内存 (1G=1024*1024kib=1000000kib)  free -h才Mem:944M
+~]# free  ---->  Mem:9760188        
+~]# free -h --> Mem:9.3G 
+问题得到解决
+
+++++++++++++++++++++++++++++++++++++++++
+network-scripts]# ovs-vsctl show
+
+装好openstack后网站页面打不开的BUG
+vim  /etc/httpd/conf.d/15-horizon_vhost.conf
+WSGIProcessGroup apache
+WSGIApplicationGroup %{GLOBAL}   在未尾倒数的apache加入这行
+WSGIScriptAlias /dashboard "/usr/share/openstack-dashboard/openstack_dashboard/wsgi/django.wsgi"
+</VirtualHost>
+:wq
+]# apachectl graceful 再点网页就可以了
+管理身份 -->创建项目(尽量不用中文,导出导入麻烦)
+
++++++++++++++++++++++++++++++++++++++
+[root@node1 ~]# source keystonerc_admin 
+[root@node1 ~(keystone_admin)]# openstack user list
++----------------------------------+------------+
+| ID                               | Name       |
++----------------------------------+------------+
+| 676f3a6bcb504f8683fbe5e75c331687 | admin      |
+| c1ceeb2f2dc14653ba75a489356395bb | neutron    |
+| 86050251af6d4455b4ee3d257affa4ae | gnocchi    |
+| d50770ebbfce41e8a3652f8198d01dcc | aodh       |
+| f7e54840467c41ac9f37705f965ee61b | nova       |
+| 270bfc36eec345efa3abd4e3dbc30a41 | glance     |
+| 13d0f0847d934102aa77c4efcf6ac91f | ceilometer |
+| 4927795146a44d6781a8faca1597ac8e | cinder     |
+| c45ba81684d141b8baafe85b2dbce1a4 | root       |
++----------------------------------+------------+
+打不全的命令回车后有命令语法提示,也可以--help
+node1 ~(keystone_admin)]# openstack user
+
+创建网络(云主机公网和企业的私网)
+云主机公网(只创一个public公网)
+名称
+public
+项目 
+daxiuge888
+供应商网络类型  
+Flat
+物理网络  
+physnet1
+段ID  空
+管理状态 
+UP
+勾 共享的
+勾 外部网络  再点创建
++++++++++++++++++++++++
+企业私有网络
+网络--网络拓扑
+登录企网用户root密码1
+一.点public增加子网
+子网名称
+wan
+网络地址 
+192.168.1.0/24
+IP版本 ipv4
+网关IP 
+192.168.1.254
+点下一步把激活DHCP勾去掉后点创建
+
+二.在网络项建多一网络lan
+名叫lan点子网
+lan
+192.168.100.0/24
+网关192.168.100.254
+++++++++++++++++++++++++++++++++++++++
+用户端root用户配置
+新建路由
+路由名称   public
+管理状态   up
+外部网络   public
+
+点网络拓扑把鼠标放在路由图上点增加接口
+子网 
+lan: 192.168.100.0/24 (lan)
+IP地址(可选) 
+192.168.100.254
+路由名称 
+
+public
+概况
+public
+ID       8d0cab9d-d4db-474f-a0be-98528745d061
+描述
+项目ID   1f0b2bcb3ec647909b9f7c7da6e49f06
+状态       运行中
+管理状态   UP
+可用域     nova
+
+外部网关
+网络名称      public
+网络          ID9b3356cb-0071-40e1-93ee-cc598a0b9fa7
+额外固定IP   子网ID dece9d42-eea2-4d7b-b837-c7ea3c7448ae
+           IP 地址 192.168.1.1
+SNAT       激活
+++++++++++++++++++++++++++++++
+计算--访问与安全--default管理规则
+在访问和安全创建新安全组access.icmp
+
+++++++++++++
+目前最好的是亚马云,阿里云,腾讯云
+创建云主机
+
+问题:
+创建云主机失败
+No valid host was found. There are not enough hosts available.
+解决是做node1云主机主机虚拟机时,内存不超过8G,重启nova服务即可
+# systemctl restart openstack-nova-compute.service
+
+创建好云主机后,创浮动IP
+	h1	small.img	
+192.168.100.102
+浮动IP:   192.168.1.7
+在h1的控制台里ping不了192.168.1.7(要增加icmp协议)
+问题:如果没有浮动端口关联是因为没有云主机为空
++++++++++++++++++++++++++++++++++
+在第二台也装并改主机名和改本地域名文件
+然后有第一台机的添加多一个第二台主机的IP
+
+h2	small.img	
+192.168.100.101
+浮动IP:192.168.1.13 运行	nova 无 运行中 8 分钟
+h1	small.img	
+192.168.100.102
+浮动IP:192.168.1.7  运行 nova 无	运行中	4 小时，20 分钟
+再添加相关的安全组协议,在openstack和nova1主机上可以ping通两个浮动IP(1网段的7和13)
+
++++++++++++++++++++++++++
+上admin管理员用户(root只是普通用户客户端)
+换CPU,为了让服务不中断,做迁移
+
+
+
+
+
