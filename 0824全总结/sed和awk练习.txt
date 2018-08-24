@@ -17,7 +17,7 @@ sed
    d 删除  //前无数字(2d)指定行或匹配条件(rootd)时，默认全删除）
 sed -n '1,3p' 显示1到3行
 sed -n '1~2p' 显示奇数行 
-]# head -6 /etc/passwd |sed -n '2p;4p '    //sed分号两个p是只输出两行（，逗号是范围行间）
+]# head -6 /etc/passwd |sed -n '2p;4p '    //区分sed的;两个p是只输出两行（，逗号是范围行间）,而awk的,就是表两行
 bin:x:1:1:bin:/bin:/sbin/nologin
 adm:x:3:4:adm:/var/adm:/sbin/nologin
 
@@ -27,7 +27,7 @@ bin 1
 daemon 2
 如果awk -F: '{print $1,4}'  后4是在第1列后全输出4字样，范围行间用NF==,>= 
 如awk -F: 'NR>=1{print $5}  输出大于等于1的行的第五列
-(sed的1,4p和awk '{print $1,$4}'都是表连续的行或列,sed的1p;4p才表示第１行第４行)
+(sed的1p;4p和awk '{print $1,$4}'都是分开的行或列,sed的1,4p才表示第１行到第４行共４行,awk想表达连续的就用awk -F: 'NF>1{print $1,$7}')
 
 ]# head -6 /etc/passwd |sed -n 2,/adm/'p '     第2行到包含adm行
 bin:x:1:1:bin:/bin:/sbin/nologin

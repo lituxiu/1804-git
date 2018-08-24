@@ -53,10 +53,27 @@ To https://github.com/lituxiu/1804-git/
 再刷新官网发现有新文档了
 git add .
 git commit -m "first" //注释
-git push orign master
-git push 接着输入
+git push origin master (要输出用户名和密码)
+git push 接着输入(这步有时也要输户名和密码)
 
 git log 查看commit的提交历史（按q退出）
+git add -A (针对所有改变时，一般追加的git add .就可以了)
+
+
+问题总结
+问题一
+remote: fatal: early EOF
+error: RPC failed; result=55, HTTP code = 200
+fatal: The remote end hung up unexpectedly
+Writing objects: 100% (114/114), 63.51 MiB | 103.00 KiB/s, done.
+Total 114 (delta 12), reused 0 (delta 0)
+fatal: The remote end hung up unexpectedl
+解决
+在修改 家目录下/root/.gitconfig 文件,加入：
+[core]
+compression = -1
+
+
 
 ＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
 git客户端
