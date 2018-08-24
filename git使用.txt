@@ -57,7 +57,12 @@ git push origin master (要输出用户名和密码)
 git push 接着输入(这步有时也要输户名和密码)
 
 git log 查看commit的提交历史（按q退出）
+
+注意
 git add -A (针对所有改变时，一般追加的git add .就可以了)
+(这个只如查更改修改的,删除的,较快)
+git commit -m "first" //注释
+git push origin master
 
 
 问题总结
