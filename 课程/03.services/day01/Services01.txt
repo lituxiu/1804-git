@@ -1,0 +1,422 @@
+搭建SERVICES教学环境
+
+1.真机搭建Web服务共享光盘所有内容
+[root@room9pc01 ~]# rpm -q httpd
+[root@room9pc01 ~]# systemctl restart  httpd
+[root@room9pc01 ~]# systemctl enable  httpd
+
+[root@room9pc01 ~]# mkdir /var/www/html/rhel7
+[root@room9pc01 ~]# mount /iso/rhel-server-7.4-x86_64-dvd.iso  /var/www/html/rhel7/
+
+[root@room9pc01 ~]# ls /var/www/html/rhel7/
+[root@room9pc01 ~]# firefox 192.168.4.254/rhel7
+
+修改配置文件/etc/fstab内容不支持快捷方式
+[root@room9pc01 ~]# vim /etc/fstab 
+
+/var/lib/libvirt/images/iso/rhel-server-7.4-x86_64-dvd.iso /var/www/html/rhel7 iso9660 defaults 0 0
+
+[root@room9pc01 ~]# umount  /dev/loop*
+[root@room9pc01 ~]# df -h
+
+# mount -a 在检测所有的loop设备时，需要所有的loop设备全部卸载
+
+[root@room9pc01 ~]# df -h
+
+######################################################
+利用真机clone-vm7产生产两台虚拟机，利用root密码123456
+
+2.搭建虚拟机A服务端
+   要求：配置永久主机名svr7.tedu.cn
+	     配置eth0永久 IP地址：192.168.4.7/24
+             使用真机Web服务器作为Yum源
+[root@localhost ~]# cat /etc/hostname 
+svr7.tedu.cn
+[root@localhost ~]# hostname svr7.tedu.cn  #临时配置当前生效
+[root@localhost ~]# exit
+
+3.搭建虚拟机B客户端
+   要求：配置永久主机名pc207.tedu.cn
+	     配置eth0永久 IP地址：192.168.4.207/24
+             使用真机Web服务器作为Yum源
+
+#######################################################
+扩展的几个应用
+
+目录结构
+[root@svr7 ~]# man hier
+
+	/boot 存放系统引导必需的文件,包括内核、启动配置
+	/bin、/sbin 存放各种命令程序
+	/dev 存放硬盘、键盘、鼠标、光驱等各种设备文件
+	/etc 存放Linux系统及各种程序的配置文件
+	/root、/home/用户名 分别是管理员root、普通用户的默认家目录
+	/var 存放日志文件、邮箱目录等经常变化的文件
+	/proc 存放内存中的映射数据,不占用磁盘
+	/tmp 存放系统运行过程中使用的一些临时文件
+
+#######################################################
+权限的数值表示
+
+• 权限的数值化
+– 基本权限:r = 4,w = 2,x = 1
+[root@svr7 ~]# mkdir /nsd01
+[root@svr7 ~]# ls -ld /nsd01
+
+[root@svr7 ~]# chmod 700 /nsd01
+[root@svr7 ~]# ls -ld /nsd01
+
+[root@svr7 ~]# chmod 007 /nsd01
+[root@svr7 ~]# ls -ld /nsd01
+
+[root@svr7 ~]# chmod 750 /nsd01
+[root@svr7 ~]# ls -ld /nsd01
+
+[root@svr7 ~]# chmod 755 /nsd01
+[root@svr7 ~]# ls -ld /nsd01
+
+##################################################
+历史命令
+• 管理/调用曾经执行过的命令
+– history:查看历史命令列表
+– history -c:清空历史命令
+– !n:执行命令历史中的第n条命令
+– !str:执行最近一次以str开头的历史命令
+• 调整历史命令的数量
+
+• 调整历史命令的数量
+[root@svr7 ~]# vim /etc/profile
+HISTSIZE=1000   //默认记录1000条
+
+[root@svr7 ~]# history
+
+[root@svr7 ~]# history -c   #清空历史命令
+
+[root@svr7 ~]# cat /etc/hostname
+[root@svr7 ~]# cat /etc/redhat-release
+
+[root@svr7 ~]# uname -r
+
+[root@svr7 ~]# !cat
+
+###################################################
+实用小命令工具
+• du,统计文件的占用空间
+– du [选项]... [目录或文件]...
+
+– -s:只统计每个参数所占用的总空间大小
+– -h:提供易读容量单位(K、M等)
+
+[root@svr7 ~]# du -sh /root/
+
+[root@svr7 ~]# du -sh /root/ /etc/
+
+[root@svr7 ~]# du -sh /root/ /etc/  /
+
+[root@svr7 ~]# du -sh /boot
+
+###################################################
+• date,查看/调整系统日期时间
+– date +%F、date +%R
+– date +"%Y-%m-%d %H:%M:%S"
+– date -s "yyyy-mm-dd  HH:MM:SS"   #修改时间
+
+• ln,创建软连接,快捷方式
+       ln  -s   /路径/源文件    /路径/快捷方式名
+   
+[root@svr7 ~]# ln -s  /etc/redhat-release   /abc
+
+[root@svr7 ~]# ls -l /abc 
+
+[root@svr7 ~]# cat  /abc 
+
+
+ zip归档工具,跨平台的压缩格式
+
+• 归档+压缩操作
+– zip [-r] 备份文件.zip 被归档的文档...
+
+[root@svr7 ~]# zip -r /opt/test.zip  /home/  /root/
+[root@svr7 ~]# ls /opt
+
+• 释放归档+解压操作
+– unzip 备份文件.zip [-d 目标文件夹]
+
+[root@svr7 ~]# unzip /opt/test.zip -d /mnt
+
+[root@svr7 ~]# zip -r /opt/file.zip  /etc/passwd /etc/group
+[root@svr7 ~]# ls /opt
+[root@svr7 ~]# unzip /opt/file.zip -d /mnt
+
+
+使用man手册
+[root@svr7 ~]# man  5  passwd   #配置文件的帮助信息
+
+   5:代表配置文件类型的帮助信息
+######################################################
+vim文本编辑器
+
+[root@svr7 ~]# cp /etc/passwd  /opt/test
+[root@svr7 ~]# vim /opt/test
+
+命令模式操作
+
+移动光标
+	Home 键 或 ^、数字 0 	跳转到行首
+	End 键 或“$”键 		跳转到行尾
+	PgUp 键、PgDn 键 		向上翻页、向下翻页
+	1G 或 gg 			跳转到文件的首行
+	G 					跳转到文件的末尾行
+
+复制/粘贴/删除
+	yy、#yy 		  复制光标处的一行、#行
+	p			  粘贴到光标处之后、之前
+	x 或 Delete键     删除光标处的单个字符
+	dd、#dd 		  删除光标处的一行、#行
+	d^ 			  从光标处之前删除至行首
+	d$ 			  从光标处删除到行尾
+    C(大写)        从光标处删除到行尾,并且进入插入模式
+
+查找/撤销/保存
+	/word 		向后查找字符串“word”
+	n、N 		跳至后/前一个结果
+	u 			撤销最近的一次操作
+	Ctrl + r 	取消前一次撤销操作
+	ZZ(大写)		保存修改并退出
+
+    Ctrl + z     把当前的程序暂停放入后台
+
+#####################################################
+E325: 注意
+发现交换文件 "/opt/.1.txt.swp"
+
+  将交换文件删除即可恢复
+#####################################################
+
+末行模式操作
+
+  :r   /etc/filesystems   读入其他文件内容,到当前文件内容
+
+ [root@svr7 ~]# echo  123  >  /opt/1.txt
+ [root@svr7 ~]# echo  abc  >  /opt/2.txt
+ [root@svr7 ~]# vim  /opt/2.txt
+       
+        末行模式下   :r   /opt/1.txt    #读入/opt/1.txt文件内容
+  			 :r   /etc/passwd   #读入/etc/passwd文件内容
+ 
+
+	:s/root/admin		替换当前行第一个“root”
+	:s/root/admin/g 	  	替换当前行所有的“admin”
+	:1,10 s/root/admin/g 替换第1-10行所有的“admin”
+	:% s/root/admin/g 	替换文件内所有的“admin”
+
+
+	:set  nu或nonu   显示/不显示行号
+	:set  ai或noai   启用/关闭自动缩进
+
+#####################################################
+自定义Yum仓库
+真机上操作：
+1.准备众多RPM包，真机将tools.tar.gz传递到虚拟机A中
+# scp  /root/桌面/tools.tar.gz  root@192.168.4.7:/root/
+
+  -r：递归传递目录
+
+虚拟机A上操作：
+2.验证
+# ls  /root
+
+3.解包到根目录
+[root@svr7 ~]# tar -xf  /root/tools.tar.gz  -C   /
+[root@svr7 ~]# ls /
+[root@svr7 ~]# ls /tools/
+[root@svr7 ~]# ls /tools/other/
+
+4.生成仓库数据文件
+[root@svr7 ~]# ls  /tools/other/
+[root@svr7 ~]# createrepo   /tools/other/
+[root@svr7 ~]# ls  /tools/other/
+
+[root@svr7 ~]# vim  /etc/yum.repos.d/rhel7.repo 
+	......
+	[myrpm]                   #仓库标识，必须要修改
+	name=myrpm
+	baseurl=file:///tools/other
+	enabled=1
+	gpgcheck=0
+
+[root@svr7 ~]# yum  repolist 
+
+##################################################
+实用小命令工具(续2)
+• ln,创建软连接
+– 软连接 --> 原始文档 --> i节点 --> 文档数据
+– ln -s 原始文件或目录  软连接文件
+若原始文件或目录被删除,连接文件将失效
+软连接可存放在不同分区/文件系统
+
+
+• ln,创建硬连接
+– 硬连接 --> i节点 --> 文档数据
+– ln 原始文件   硬连接文件
+若原始文件被删除,连接文件仍可用
+硬连接与原始文件必须在同一分区/文件系统
+
+
+区别： 软连接 对 原始文档 做快捷方式，硬连接对 i节点  做快捷方式
+
+i节点：硬盘存储数据时，文件或目录的唯一编号
+
+查看  ls  -i
+
+读取数据过程：   1.txt----->i节点-------->到存储空间中取的相应的数据
+
+######################################################
+源码编译安装
+
+ rpm包：简单，不够灵活
+
+
+  源码包：灵活可以选安装位置及功能，版本较新
+
+如何安装
+
+ rpm包：rpm -ivh   yum install
+
+
+  源码包------开发工具编译 -------》可以执行的程序 -------》运行安装
+
+
+步骤一：安装开发工具gcc、make
+[root@svr7 /]# yum -y install  gcc  make
+[root@svr7 /]# rpm -q gcc
+gcc-4.8.5-16.el7.x86_64
+[root@svr7 /]# rpm -q make
+make-3.82-23.el7.x86_64
+
+步骤二：tar进行解包
+# tar -xf  /tools/inotify-tools-3.13.tar.gz  -C   /
+# ls /
+# ls /inotify-tools-3.13/
+
+步骤三： ./configure 进行配置
+  作用1：检测系统是否安装gcc  作用2：可以指定安装的位置及功能
+
+    --prefix=指定安装位置
+
+常见报错：未安装gcc
+checking for gcc... no
+checking for cc... no
+checking for cl.exe... no
+configure: error:
+
+# cd /inotify-tools-3.13/
+# ./configure  --prefix=/usr/local/myrpm
+
+步骤四：make 进行编译
+# cd /inotify-tools-3.13/
+# make 
+
+步骤五：make install 进行安装
+# cd /inotify-tools-3.13/
+# make install 
+
+# ls /usr/local/myrpm/bin/
+
+#################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

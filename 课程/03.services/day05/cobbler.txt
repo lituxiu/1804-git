@@ -1,0 +1,179 @@
+一、搭建CentOS虚拟机
+  新建一台虚拟机，放入CentOS7.4的光盘
+  内存为2G，硬盘50G
+  网络类型为 private1
+  分区自动选择，设置root密码，建立普通用户
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+二、虚拟机设置  
+   1.设置防火墙为trusted
+   2.当前及永久设置SELinux状态为permissive
+   3.配置IP地址：192.168.4.180/24
+   4.利用本地/dev/cdrom挂载,搭建本地Yum仓库   
+   5.主机名：cobbler.tedu.cn
+
+三、利用scp真机传递Cobbler.zip包到虚拟机192.168.4.180中
+ # scp /root/桌面/Cobbler.zip   root@192.168.4.180:/root/
+
+
+四、搭建Cobbler装机平台
+
+  Cobbler概述软件，管理dhcp、tftp、Web服务
+    自由的导入镜像与ks应答文件
+
+1.解压Cobbler.zip包
+[root@cobbler /]# unzip /root/Cobbler.zip -d /
+[root@cobbler /]# cd /Cobbler/
+[root@cobbler Cobbler]# unzip cobbler.zip    #解压到当前目录
+[root@cobbler Cobbler]# ls
+[root@cobbler Cobbler]# cd cobbler
+[root@cobbler cobbler]# ls
+
+#####################################################
+五、安装cobbler主程序、工具包等
+[root@cobbler /]# yum -y install /Cobbler/cobbler/*.rpm
+
+#################################################################
+cobbler网络装机部署
+
+1.安装软件 cobbler cobbler-web dhcp tftp-server pykickstart httpd  tftp-server 
+
+ cobbler         #cobbler程序包
+ cobbler-web     #cobbler的web服务包
+ pykickstart     #cobbler检查kickstart语法错误
+ httpd           #Apache web服务
+ dhcp            #Dhcp服务
+ tftp-server     #tftp服务
+
+2.配置cobbler
+[root@svr7 /]# vim /etc/cobbler/settings
+
+ next_server:  192.168.4.180   #设置下一个服务器还为本机
+ server: 192.168.4.180         #设置本机为cobbler服务器
+ manage_dhcp: 1                #设置cobbler管理dhcp服务
+ pxe_just_once: 1              #防止客户端重复安装操作系统
+
+ 开机启动： 匹配及停止  
+     1.硬盘启动   2.光驱设备  3.U盘  4.网络引导   
+ 
+
+3.配置cobbler的dhcp
+[root@svr7 /]# vim /etc/cobbler/dhcp.template 
+
+  :%s  /192.168.1/192.168.4/g
+
+4.绝对路径解压cobbler_boot.tar.gz    #众多的引导文件
+
+# tar -tf  /Cobbler/cobbler_boot.tar.gz
+# tar -xPf  /Cobbler/cobbler_boot.tar.gz  #绝对路径释放
+
+# ls  /var/lib/cobbler/loaders/
+
+5.启动相关服务
+
+[root@svr7 /]# systemctl restart cobblerd
+[root@svr7 /]# systemctl enable cobblerd
+
+[root@svr7 /]# systemctl restart httpd
+[root@svr7 /]# systemctl enable httpd
+
+[root@svr7 /]# systemctl restart tftp
+[root@svr7 /]# systemctl enable tftp
+
+[root@svr7 /]# systemctl restart rsyncd
+[root@svr7 /]# systemctl enable rsyncd
+
+
+6.同步刷新cobbler配置
+[root@svr7 /]# cobbler sync
+[root@svr7 /]# firefox https://192.168.4.180/cobbler_web
+
+   用户名：cobbler
+   密码：cobbler
+
+
+
+
+
+
+
+
+##########################################################################################################
+  cobbler import  --path=挂载点   --name=导入系统命名（随意起）
+导入安装镜像数据
+
+[root@Cobbler ~]# mount /dev/cdrom  /dvd
+mount: /dev/sr0 is write-protected, mounting read-only
+
+[root@room9pc01 /]# cobbler list   #查看有哪些系统
+
+[root@room9pc01 /]# cobbler import --path=/dvd  --name=CentOS7
+
+
+[root@room9pc01 /]# mkdir /rhel7
+[root@room9pc01 /]# mount /iso/rhel-server-7.4-x86_64-dvd.iso    /rhel7/
+
+[root@room9pc01 /]# cobbler import --path=/rhel7  --name=RedHat7
+
+
+cobbler导入的镜像放在：/var/www/cobbler/ks_mirror
+
+[root@room9pc01 /]# cobbler profile report   #查看cobbler导入信息
+
+[root@room9pc01 /]# killall  -9 dnsmasq  #虚拟化服务会干扰DHCP服务
+
+############################################################################################################
+
+默认kickstart文件存放位置：/var/lib/cobbler/kickstarts/
+
+[root@cobbler ~]# cobbler list
+
+修改kickstart文件：
+[root@cobbler ~]# cobbler profile edit --name=CentOS7.4-A --kickstart=/var/lib/cobbler/kickstarts/CentOS-7.3-x86_64.cfg
+[root@cobbler ~]# cobbler profile report
+[root@cobbler ~]# cobbler sync
+
+############################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

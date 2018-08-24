@@ -1,0 +1,78 @@
+配置聚合连接(网卡绑定  链路聚合  组队)
+
+  作用：备份网卡，防止单点故障
+
+   热备份(activebackup)连接冗余
+
+1.创建虚拟网卡team0 ,  # man teamd.conf   全文搜索/example
+
+# nmcli connection  add  type  team         
+  con-name  team0  ifname team0  autoconnect  yes          
+  config  '{"runner": {"name": "activebackup"}}'
+
+# nmcli connection 添加     类型    为组队
+    配置文件名   team0  ifconfig显示的名字为  team0  开机自启动
+    配置为  '{"runner": {"name": "activebackup"}}' (热备份方式)
+
+# 如果敲错：
+# nmcli connection  delete  team0     #删掉从新做
+2.添加成员
+
+# nmcli connection add type team-slave 
+  con-name team0-1 ifname eth1 master team0
+
+# nmcli connection add type team-slave 
+  con-name team0-2 ifname eth2 master team0
+
+# nmcli connection  添加  类型   为team的成员
+    配置文件名  为team0-2  网卡为  eth2  主设备为  team0
+
+# 如果敲错：
+# nmcli connection  delete  team0-1     #删掉从新做
+# nmcli connection  delete  team0-2     #删掉从新做
+
+3.为team0配置ip地址
+[root@server0 ~]# nmcli  connection  modify  team0       ipv4.method  manual  ipv4.addresses  192.168.1.1/24     connection.autoconnect   yes
+
+4.激活所有的配置
+[root@server0 ~]# nmcli connection up team0
+[root@server0 ~]# nmcli connection up team0-1
+[root@server0 ~]# nmcli connection up team0-2
+
+[root@server0 ~]# ifconfig team0
+
+
+5.专业检测team0命令
+[root@server0 ~]# teamdctl team0 state
+
+[root@server0 ~]# ifconfig eth1 down
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

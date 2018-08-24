@@ -1,0 +1,304 @@
+教学环境介绍
+
+每个学员机上有三台预先配置好的虚拟机
+– server —— 作为练习用服务器
+– desktop —— 作为练习用客户机
+– classroom —— 提供网关/DNS/软件素材等资源
+
+  开机的顺序，优先开启classroom
+
+真机上操作还原三台虚拟机
+[root@room9pc01 ~]# rht-vmctl  reset  classroom
+[root@room9pc01 ~]# rht-vmctl  reset  server
+[root@room9pc01 ~]# rht-vmctl  reset  desktop
+
+用户名:root  密码:redhat  登陆虚拟机Server与虚拟机Desktop
+
+ 虚拟机Server
+          1.操作系统版本 RHEL7.0
+          2.系统的IP地址：172.25.0.11
+          3.主机名：server0.example.com
+
+ 虚拟机Desktop
+          1.操作系统版本 RHEL7.0
+          2.系统的IP地址：172.25.0.10
+          3.主机名：desktop0.example.com
+
+######################################################
+远程管理虚拟机
+
+ 真机远程管理虚拟机Server与虚拟机Desktop
+
+[root@room9pc01 ~]# ssh   root@172.25.0.11
+
+[root@room9pc01 ~]# ssh   root@172.25.0.10
+
+补充：Ctrl + shift + t 新开一个终端
+
+   -X(大写)：可以在远程管理时，本地运行对方的图形程序
+
+[root@room9pc01 ~]# ssh  -X  root@172.25.0.11
+[root@server0 ~]# firewall-config   #防火墙设置图形程序
+
+
+#######################################################
+在真机上：设置永久别名的配置文件/root/.bashrc
+
+[root@room9pc01 ~]# vim /root/.bashrc 
+
+# .bashrc
+alias  gos='ssh  -X  root@172.25.0.11'
+alias  god='ssh  -X  root@172.25.0.10'
+
+在开一个新的终端验证：
+[root@room9pc01 ~]# gos 
+[root@room9pc01 ~]# god
+
+######################################################
+软件包管理
+
+1.图形添加光驱设备，关闭虚拟机
+2.零散软件管理
+[root@server0 ~]# mkdir /dvd
+[root@server0 ~]# mount /dev/cdrom  /dvd/
+
+# rpm  -q vsftpd   #查询软件包是否安装
+# rpm -ivh /dvd/Packages/vsftpd-3.0.2-22.el7.x86_64.rpm
+# rpm  -q vsftpd   #查询软件包是否安装成功
+
+# rpm  -e vsftpd   #卸载vsftpd程序
+# rpm  -q vsftpd   #查询软件包是否卸载成功 
+# rpm  -qa         #查询已经安装的所有rpm包
+
+补充：导入官方的签名 信息
+# rpm --import /dvd/RPM-GPG-KEY-redhat-release 
+# rpm -e vsftpd
+# rpm -ivh /dvd/Packages/vsftpd-3.0.2-22.el7.x86_64.rpm
+
+#######################################################
+常见报错：
+
+错误：依赖检测失败：
+	bind = 32:9.9.4-50.el7 被 bind-chroot-32:9.9.4-50.el7.x86_64 需要
+
+#####################################################
+Yum软件包仓库，可以自动解决依赖关系
+
+ 服务：为客户端自动解决依赖关系，安装软件
+
+
+ 服务端：classroom.example.com搭建Web服务，共享光盘所有内容
+
+ http://classroom.example.com/content/rhel7.0/x86_64/dvd/
+
+
+ 客户端：虚拟机Server，指定服务端位置
+
+   客户端配置文件：/etc/yum.repos.d/*.repo
+   错误的配置文件会影响正确的配置文件
+
+[root@server0 ~]# rm  -rf  /etc/yum.repos.d/*
+[root@server0 ~]# vim  /etc/yum.repos.d/dvd.repo
+ [dvd]           #仓库命名
+ name=rhel7.0    #仓库描述信息
+ baseurl=http://classroom.example.com/content/rhel7.0/x86_64/dvd/        #指定服务端位置
+ enabled=1         #是否启用本文件
+ gpgcheck=0        #是否检测软件包的签名信息
+
+[root@server0 ~]# yum repolist    #列出仓库信息
+
+
+#####################################################
+Yum的使用
+   安装软件包：
+[root@server0 ~]# yum -y install sssd
+[root@server0 ~]# yum -y install gcc
+[root@server0 ~]# yum -y install httpd
+[root@server0 ~]# yum -y install system-config-kickstart 
+
+[root@server0 ~]# yum -y install xeyes
+
+[root@server0 ~]# xeyes
+
+   卸载软件包：
+[root@server0 ~]# yum   remove   软件名
+
+
+  清空Yum缓存：
+[root@server0 ~]# yum  clean  all
+
+ 搜索仓库里所有的软件包：
+[root@server0 ~]# yum  search  软件名
+
+##################################################
+下载软件包
+• 使用wget下载工具
+
+  – wget  软件包的URL网址
+  – wget  软件包的URL网址   -O   /目录路径/新文件名
+
+
+案例3:升级Linux内核
+
+[root@server0 ~]# uname -r
+3.10.0-123.el7.x86_64
+
+# wget  http://classroom.example.com/content/rhel7.0/x86_64/errata/Packages/kernel-3.10.0-123.1.2.el7.x86_64.rpm
+
+# rpm -ivh kernel-3.10.0-123.1.2.el7.x86_64.rpm 
+
+[root@server0 ~]# uname -r
+3.10.0-123.el7.x86_64
+[root@server0 ~]# reboot       #重起生效
+
+[root@room9pc01 ~]# gos
+[root@server0 ~]# uname -r
+3.10.0-123.1.2.el7.x86_64
+
+######################################################
+配置网络参数（主机名、IP地址、子网掩码、网关、DNS地址）
+
+一、配置永久主机名,配置文件/etc/hostname
+
+[root@server0 ~]# vim  /etc/hostname
+A.tedu.cn
+[root@server0 ~]# exit    #退出远程管理
+
+[root@room9pc01 ~]# gos   #重新远程管理
+
+[root@A ~]# hostname
+A.tedu.cn
+
+[root@A ~]# 
+
+二、配置永久的IP地址、子网掩码、网关地址
+
+ 教学环境：
+ – 默认网关:172.25.0.254
+
+ 修改配置文件：/etc/sysconfig/network-scripts/ifcfg-eth0
+
+1.查看识别的网卡名
+[root@A ~]# nmcli connection show 
+
+2.配置IP地址、子网掩码、网关地址
+# nmcli  connection   modify  'System eth0'      
+  ipv4.method   manual 
+  ipv4.addresses  '172.25.0.168/24     172.25.0.254' 
+  connection.autoconnect   yes 
+ 
+# nmcli   connection   修改    '网卡名'
+  ipv4.方法    手工配置
+  ipv4.地址   ' IP地址/子网掩码    网关地址'
+    每次开机自动启用配置    
+	
+# cat /etc/sysconfig/network-scripts/ifcfg-eth0
+
+3.激活配置
+# nmcli  connection  up  'System eth0'
+
+[root@room9pc01 ~]# ssh -X root@172.25.0.168
+
+
+[root@A ~]# route    #查看网关地址
+
+三、DNS服务器作用：将域名解析为IP地址
+
+  教学环境的DNS：172.25.254.254
+
+  检测DNS服务器是否能够解析：nslookup 
+
+  修改配置文件：/etc/resolv.conf 
+
+[root@A ~]# vim  /etc/resolv.conf
+nameserver  172.25.254.254
+
+[root@A ~]# nslookup classroom.example.com
+
+######################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
