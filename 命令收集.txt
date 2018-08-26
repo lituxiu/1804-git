@@ -2,6 +2,14 @@ echo -e 后加\n是换行
 echo -e "text1\ntext2"
    text1
    text2
+[root@localhost ~]# echo -e "1\n2\n3"
+1
+2
+3
+[root@localhost ~]# echo -e 1\n2\n3
+1n2n3
+（注意：不加-e和“”时，是换不了行的）
+
 
 ./表示当前目录，这是因为linux的默认搜索目录里没有当前目录，所以如果你在当前目录需要执行程序就要加上路径./，用全路径代替也是可以的
 ../是退一级目录

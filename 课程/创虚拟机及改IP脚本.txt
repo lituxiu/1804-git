@@ -1,0 +1,36 @@
+克隆虚拟机脚本
+qemu-img create -b /var/lib/libvirt/images/daxiuge888.qcow2 -f qcow2 /var/lib/libvirt/images/$1.img  $2G
+sed  "s#node#$1#" /var/lib/libvirt/images/node.xml >/etc/libvirt/qemu/$1.xml
+virsh define /etc/libvirt/qemu/$1.xml
+virsh start $1
+
+打开虚氛
+expect <<EOF
+spawn ssh 192.168.1.$1
+expect "yes/no" {send "yes\r"}
+expect "password:" {send "1\r"}
+expect  "#"  {send "echo DEVICE=eth0 >  /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect  "#"  {send "echo ONBOOT=yes >  /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect  "#"  {send "echo  NM_CONTROLLED=no >  /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect  "#"  {send "echo TYPE=Ethernet >  /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect  "#"  {send "echo BOOTPROTO=static >  /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect  "#"  {send "echo IPADDR=192.168.1.$2 >  /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect  "#"  {send "echo  PREFIX=24 >  /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect  "#"  {send "echo GATEWAY=192.168.1.254 >  /etc/sysconfig/network-scripts/ifcfg-eth0\r"}
+expect "#" {send "hostnamectl set-hostname $3\r "}
+expect "#" {send "exit\r"}
+EOF
+
+注意：刚开始倒数第三行expect "#" {send "hostnamectl set-hostname $3 "}设置主机名失败，但不报错，要加\r才成功生效，什么原因？expect要命令/r才生效吗？
+还有expect的expect  "#"  {send "这里是不能再加单引号和双引号了"}，加了就出错，故刚才想用sed过滤网卡echo配置文件不可行
+
+克隆出来的虚拟机网卡
+/etc/sysconfig/network-scripts/ifcfg-eth0
+DEVICE=eth0
+ONBOOT=yes
+NM_CONTROLLED=no
+TYPE=Ethernet
+BOOTPROTO=dhcp                --->static
+#IPADDR=192.168.1.50
+#PREFIX=24
+#GATEWAY=192.168.1.254 

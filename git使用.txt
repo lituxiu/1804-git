@@ -93,6 +93,32 @@ hint: 'git pull ...') before pushing again.
 解决：
 先 git  pull origin master
 后 git push origin master
+问题三（2）下载更新为本地，当版本和仓库不一样时
+$ git pull
+remote: Counting objects: 12, done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 12 (delta 5), reused 12 (delta 5), pack-reused 0
+Unpacking objects: 100% (12/12), done.
+From https://github.com/lituxiu/1804-git
+   4da861f..5d77e91  master     -> origin/master
+There is no tracking information for the current branch.
+Please specify which branch you want to merge with.
+See git-pull(1) for details.
+       git pull <remote> <branch>
+If you wish to set tracking information for this branch you can do so with:
+    git branch --set-upstream-to=origin/<branch> master
+解决
+$ git remote -v  查看你当前项目的远程git地址，先确定地址是否正确
+           origin  https://github.com/lituxiu/1804-git.git (fetch)
+           origin  https://github.com/lituxiu/1804-git.git (push)
+$ git branch -a  查看远程的所有分支列表
+        * master
+        remotes/origin/master
+$ git pull origin master 更新远程的分支，最后提示更新成功
+
+
+
+
 
 ＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
 git客户端

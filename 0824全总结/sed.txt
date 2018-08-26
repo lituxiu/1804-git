@@ -1,0 +1,149 @@
+扩展正则表达式 （） +  ？  []
+
+查看系统的空闲内存
+free | awk '/Mem/{print $4}'  //awk '/Mem/{print $2}'是总内存量
+
+sed
+选项
+-n 屏敝默认输出
+-r扩展正则-r   |是或 （）是一个整体
+-i直接修改文档 
+
+参数
+   2a 第二行后追加
+   2i 第二行前插入
+   \n 换行
+   s\x\y\ 替换，把后不加g是把第一行的第一个x替换成y,加g是全替换（十分注意g不是sed的命令，在vim里也有g）
+   d 删除  //前无数字(2d)指定行或匹配条件(rootd)时，默认全删除）
+sed -n '1,3p' 显示1到3行
+sed -n '1~2p' 显示奇数行 
+]# head -6 /etc/passwd |sed -n '2p;4p '    //区分sed的;两个p是只输出两行（，逗号是范围行间）,而awk的,就是表两行
+bin:x:1:1:bin:/bin:/sbin/nologin
+adm:x:3:4:adm:/var/adm:/sbin/nologin
+
+]# head -6 /etc/passwd | awk -F: '{print $1,$4}'    //awk 两$逗号是范围间列，把逗号换成分号后只显示第1列了，分号在此不起作用
+root 0
+bin 1
+daemon 2
+如果awk -F: '{print $1,4}'  后4是在第1列后全输出4字样，范围行间用NF==,>= 
+如awk -F: 'NR>=1{print $5}  输出大于等于1的行的第五列
+(sed的1p;4p和awk '{print $1,$4}'都是分开的行或列,sed的1,4p才表示第１行到第４行共４行,awk想表达连续的就用awk -F: 'NF>1{print $1,$7}')
+
+]# head -6 /etc/passwd |sed -n 2,/adm/'p '     第2行到包含adm行
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+adm:x:3:4:adm:/var/adm:/sbin/nologin
+
+[root@room0pc99 桌面]# stat /etc/passwd
+  文件："/etc/passwd"
+  大小：2374      	块：8          IO 块：4096   普通文件
+设备：fd00h/64768d	Inode：404524842   硬链接：1
+权限：(0644/-rw-r--r--)  Uid：(    0/    root)   Gid：(    0/    root)
+[root@room0pc99 桌面]# stat /etc/passwd | awk -F "[0/]" 'NR==4{print $2}'   取最近的0和/为分隔符
+644
+
+查看网卡地址
+方法一
+]# ifconfig eno16777736 | sed -nr 's#^.*inet (.*) net.*$#\1#gp'      以关键字
+192.168.1.105 
+]# ifconfig eno16777736 | sed -nr '2s#^.*inet (.*) net.*$#\1#gp'     以行数
+192.168.1.105 
+方法二
+[root@room0pc99 桌面]# grep IPADDR  /etc/sysconfig/network-scripts/ifcfg-lo
+IPADDR=127.0.0.1
+[root@room0pc99 桌面]# grep IPADDR  /etc/sysconfig/network-scripts/ifcfg-lo |cut -b 2-4
+PAD
+[root@room0pc99 桌面]# grep IPADDR  /etc/sysconfig/network-scripts/ifcfg-lo |cut -d=  -f2
+127.0.0.1
+
+遍厉所有shell脚本把解释器声明替换成大秀哥（xargs命令的使用（可遍历文本，直接用sed修改文本），find /root/shell -type f |xargs cat等其它遍厉查看使用）
+]# find /root/shell -type f |xargs sed -i 's/#!\/bin\/bash/daxiuge/'
+
+echo -n 不换行 -e后加 \n回车  \t 水平制表符（会横向空格）
+
+加号是未来，减号是过去
+[root@room0pc99 shell]# date
+2018年 08月 08日 星期三 23:49:47 CST
+[root@room0pc99 shell]# date +%F -d "-1 year"
+2017-08-08
+[root@room0pc99 shell]# date +%F%H -d "-1 Hour"
+2018-08-0822
+[root@room0pc99 shell]# date +%F%H -d "+2 Hour"
+2018-08-0901
+
+特殊环境变量
+PATH：所有命令的路径所在地，用冒号分隔
+添加PATH路径（：分号隔开）
+ 方法一（临时）： 直接在命令行中输入：#PATH=$PATH:/etc/apache/bin。这种方法只对当前会话有效，也就是说每当登出或注销系统后，PATH设置就会恢复原有设置。 
+方法二（永久）： 修改/etc/profile文件。在/etc/profile文件的适当位置添加PATH=$PATH:/etc/apache/bin
+
+几个重要文件路役
+/var/log/messages  系统日志
+/var/log/secure  系统安全日志
+/var/spool/clientmqueue 邮件临时文件
+/proc/interrupts 查看中断文件
+/etc/fstab  磁盘文件系统开机自动挂载文件
+/etc/profile 全局环境配置文件
+
+Ctrl+a 切换到命令行开头
+Ctrl+e 切换到命令行未尾
+Ctrl+d 删除子终端
+Ctrl+c 终止当前命令或脚本
+Ctrl+l  清屏（相当clear）
+Ctrl+r 查找
+Ctrl+k 清除（剪切）光标之后的内容
+Ctrl+u 清除（剪切）光标之前的内容
+
+sed和awk是一行一行读取操作
+
+]# sed -n '$p'  /etc/passwd 输出最后一行，$代表最后一行
+apache:x:48:48:Apache:/usr/share/httpd:/sbin/nologin
+]# sed -n '$='  /etc/passwd 输出最后一行是第几行
+45
+]# sed -n '/root/='  /etc/passwd 输出匹配到root的是哪几行
+1
+10
+！注意：sed  'd' /etc/passwd  如果删除d没有指定的话是全删除所有行了
+sed  '2d' /etc/passwd   只删除第二行
+ sed -n '/root/!p'  /etc/passwd 不显示/root/的行，其它行都显示 
+注意：sed -n 's#x#y#g '时，x是被替换对象可以正则匹配，但y是最终替换得到的结果不能用正则匹配，必须具体。
+默认sed软件是对模式空间（内存中的数据）操作，而-i选项会更改硬盘上的内容。
+sed '3s#0#9#'  1.txt 对第三行第一个0替换
+“”作用，里面有特殊字符的话，先表达特殊字符，再进行操作，比如先实现变量的值结果输出再输出 其它字符（不加引号也是一样的，只不过有此文本字符必须加双引号才表达出效果）
+‘’
+
+sed -i '10 i include extra/www/cibf;\ninclude extra/bbs.conf;\ninclude extra/blog.conf;' /usr/local/nginx/conf/nginx.conf
+显示include extra/www.conf
+   include extra/bbs.conf
+   include extra/blog.conf
+(sed -i '里的\n是换行')
+
+高级运用：把类似stu_888-1_finished.jpg的_finished去掉
+[root@shl ~]# ls
+stu_888-1_finished.jpg  stu_888-3_finished.jpg  stu_888-5_finished.jpg
+stu_888-2_finished.jpg  stu_888-4_finished.jpg
+[root@shl ~]# ls | sed -n 's#\(stu_888-.*\)_finished\(.jpg\)#\1\2#p'
+stu_888-1.jpg
+stu_888-2.jpg
+stu_888-3.jpg
+stu_888-4.jpg
+stu_888-5.jpg
+[root@shl ~]# ls | sed -i 's#\(stu_888-.*\)_finished\(.jpg\)#\1\2#'
+sed: 没有输入文件  --》这方法实现不了
+解决：
+方法一（失败）：[root@shl ~]# ls | sed -n 's#\(stu_888-.*\)_finished\(.jpg\)#mv & \1\2#g' |bash
+[root@shl ~]# ls
+stu_888-1_finished.jpg  stu_888-3_finished.jpg  stu_888-5_finished.jpg
+stu_888-2_finished.jpg  stu_888-4_finished.jpg
+方法二[root@shl ~]# ls | sed -r 's#(stu_888-.*)_finished(.jpg)#mv & \1\2#g' |bash
+[root@shl ~]# ls
+stu_888-1.jpg  stu_888-2.jpg  stu_888-3.jpg  stu_888-4.jpg  stu_888-5.jpg
+（要加-r扩展正则才生效，虽然有些地方和方法一显示一样，不过这里要注意， &代表要被替换的所有内容，最后也要把命令交给bash处理）
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+问题？
+  head -6 /etc/passwd | awk -F: NR==2'{print $1}'
+ head -6 /etc/passwd | awk -F: NR>=2'{print $1}'
+-rw-r--r--. 1 root root  215 8月  12 14:57 =2{print $1}
+-rw-r--r--. 1 root root  215 8月  12 14:58 2{print $1}
+
