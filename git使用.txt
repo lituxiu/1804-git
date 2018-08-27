@@ -115,7 +115,9 @@ $ git branch -a  查看远程的所有分支列表
         * master
         remotes/origin/master
 $ git pull origin master 更新远程的分支，最后提示更新成功
-
+             From https://github.com/lituxiu/1804-git
+             * branch            m aster     -> FETCH_HEAD
+             Already up to date.
 
 
 

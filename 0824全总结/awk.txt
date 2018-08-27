@@ -1,0 +1,9 @@
+         awk参数         模式动作
+awk   options    'pattern {action}'  file
+     找谁       干啥
+‘pattern {action} ’
+
+域(filed)和记录(record)
+
+RS:record sep(记录分隔符)每个记录的分隔符。（默认是\n换行分隔的）
+NR：行号（是默认是\n换行分隔），number of record 记录的数。awk当前处理的，记录的数
