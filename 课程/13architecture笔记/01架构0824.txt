@@ -176,6 +176,172 @@ vim /root/httpd.yml
         state: started
         enabled: yes
 
+以上playbook案例通过查找man帮助文档写出来,如ansible-doc lineinfile进去后搜索
+
+user02.yml 变量
+---
+- hosts: db1,web1
+  remote_user: root
+  vars:
+    username: "jj"
+  tasks:
+    - user:
+        name: "{{username}}"
+    - shell: echo 123456 |passwd --stdin "{{username}}"
+    - shell: chage -d 0 "{{username}}"
+
+vim /etc/login.defs
+echo 123456 |md5sum
+bane:"{{'123456'|password_hash('sha512')}}"
+
+user03.yml 过滤器
+---
+- hosts: cache
+  remote_user: root
+  vars:
+    username: "jj"
+  tasks:
+    - user:
+        name: "{{username}}"
+        password: "{{'123456'|password_hash('sha512')}}"
+    - shell: chage -d 0 "{{username}}"
+
+ansible all --list-host
+ansible web -m shell -a 'id zhang3'
+
+user04.yml 忽略错误
+---
+- hosts: web1
+  remote_user: root
+  vars:
+    username: "zhang3"
+  tasks:
+    - shell: adduser "{{username}}"
+      ignore_errors: True
+    - shell: echo 123123 |passwd --stdin "{{username}}"
+    - shell: chage -d 0 "{{username}}"
+
+http02.yml handlers 使用(类似shell的函数,用notify调用)
+---
+- hosts: cache
+  remote_user: root
+  tasks:
+    - name: install the latest version of Apache
+      yum:
+        name: httpd
+        state: installed
+      notify:
+        - boot start
+        - restart httpd
+    - lineinfile:
+        path: /etc/httpd/conf/httpd.conf
+        regexp: '^Listen '
+        insertafter: '^#Listen '
+        line: 'Listen 8080'
+      notify:
+        - restart httpd
+    - lineinfile:
+        path: /etc/httpd/conf/httpd.conf
+        regexp: '^#ServerName'
+        line: 'ServerName localhost'
+      notify:
+        - restart httpd
+    - copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        owner: apache
+        group: apache
+        mode: 0644
+  handlers:
+    - name: restart httpd
+      service:
+        name: httpd
+        state: restarted
+    - name: boot start
+      service:
+        name: httpd
+        enabled: yes
+
+printf "abcd\n"  换行\n
+uptime |awk '{printf("%f\n",$(NF-2))}'
+uptime |awk '{printf("%.2f",$(NF-2))}'  保留两位小数
+
+把负载高的web服务器停止
+---
+- hosts: web
+  remote_user: root
+  tasks:
+    - shell: uptime |awk '{printf("%.2f",$(NF-2))}'
+      register: result
+    - service: name=httpd state=stopped
+      when: result.stdout|float > 0.7
+追加 debug 调试信息
+    - name: Show debug info
+      debug: var=ooxx
+
+测试命令 awk 'BEGIN{while(1){}}'
+
+
+循环
+---
+- hosts: root
+  remote_user: root
+  tasks:
+    -name:
+     user:
+       name: "{{item}}"
+       password: "{{'aaa'|password_hash('sha512')}}"
+       group: users   
+    with_items: [ "nb","dd","plj","lx" ]
+    
+ 或  with_items:
+    -"nb"
+    -"dd"
+    -"jj"
+    -"xx"
+
+循环添加多用户
+---
+- hosts: db2
+  remote_user: root
+  tasks:
+    - name: create user
+      user:
+        name: "{{item.name}}"
+        password: "{{item.pwd|password_hash('sha512')}}"
+        group: "{{item.group}}"
+      with_items:
+        - { name: "nb", pwd: "aa", group: "users" }
+        - { name: "dd", pwd: "bb", group: "mail" }
+        - { name: "jj", pwd: "cc", group: "wheel" }
+        - { name: "xx", pwd: "dd", group: "root" }
+
+嵌套循环
+---
+- hosts: cache
+  remote_user: root
+  vars:
+    un: [a, b, c]
+    id: [1, 2, 3]
+  tasks:
+    - name: add users
+      shell: echo {{item}}
+      with_nested:
+        - "{{un}}"
+        - "{{id}}"
+ansible-playbook xun.yml 运行
+
+
+语法检测(不过有时检测报的错误位置不太准确)
+ansible-playbook --syntax-check playbook.yml
+测试运行(模拟运行)
+ansible-playbook -C playbook.yml
+
+
+
+
+
+
 
 
 
