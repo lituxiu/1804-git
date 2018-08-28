@@ -1,4 +1,4 @@
-重定向输出: 将前面命令的输出结果，写入到另一个文本文件中
+﻿重定向输出: 将前面命令的输出结果，写入到另一个文本文件中
   >:覆盖重定向
   >>:追加重定向
 
@@ -307,19 +307,22 @@ cron计划任务
 
 	-i: 忽略大小写
 	-v: 取反查找
-
+                -c:统计匹配的行数
   – ^word   以字符串word开头
   – word$   以字符串word结尾
 
+~]# cat /etc/passwd|wc -l
+19
+~]# grep -c "/" /etc/passwd
+19
+匹配/etc/init.d/network 有多少行空行
+[root@shl ~]# grep -c "^$" /etc/init.d/network 
+42
+
 [root@server0 ~]# grep -i man /etc/man_db.conf  
-
 [root@server0 ~]# grep -i ROOT /etc/passwd
-
 [root@server0 ~]# grep -v root /etc/passwd
-
-
 [root@server0 ~]# grep ^root /etc/passwd  #以root开头
-
 [root@server0 ~]# grep root$ /etc/passwd  #以root结尾
 [root@server0 ~]# grep bash$ /etc/passwd  #以bash结尾
 
@@ -329,7 +332,6 @@ cron计划任务
 
 显示/etc/login.defs有效信息(去除注释，去除空行)
 # grep -v  ^#  /etc/login.defs  |  grep  -v  ^$
-
 # grep -v ^# /etc/login.defs |  grep  -v  ^$  >  /opt/2.txt
 
 #################################################

@@ -140,6 +140,11 @@ stu_888-2_finished.jpg  stu_888-4_finished.jpg
 stu_888-1.jpg  stu_888-2.jpg  stu_888-3.jpg  stu_888-4.jpg  stu_888-5.jpg
 （要加-r扩展正则才生效，虽然有些地方和方法一显示一样，不过这里要注意， &代表要被替换的所有内容，最后也要把命令交给bash处理）
 
+sed -n '2,5p' /etc/passwd
+sed -n  '/start/,/end/p ' /etc/passwd
+
+
+
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 问题？
   head -6 /etc/passwd | awk -F: NR==2'{print $1}'
