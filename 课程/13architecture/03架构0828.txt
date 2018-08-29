@@ -1,0 +1,126 @@
+day3    ELK
+ELK 其实幵丌是一款软件,而是一整套解决方案,是
+三个软件产品的首字母缩写(类似LNMP)
+L N M P
+  K E L
+Elasticsearch:负责日志检索和储存
+Logstash:负责日志的收集和分析、处理
+Kibana(k班纳):负责日志的可视化
+环境(全2核)
+ElasticSearch 5台 1.5内存   es1--es5 192.168.1.11-15
+kibana 1台 1.5G内存   192.168.1.18
+Logstash 1台 3.0G内存  192.168.1.20
+web52 1台 1.5G内存 192.168.1.52
+
+(JSON要学会)
+ES集群安装
+
+1 修改 /etc/hosts
+192.168.1.11	es1
+192.168.1.12	es2
+192.168.1.13	es3
+192.168.1.14	es4
+192.168.1.15	es5
+192.168.1.18	kibana
+192.168.1.20	logstash
+192.168.1.33	web01
+2 安装 yum install -y java-1.8.0-openjdk(es2-es5装包不需要修改配置文件)
+3 安装 yum install -y elasticsearch
+es11~]# for i in {13..15}; do ssh es$i yum -y install java-1.8.0-openjdk elasticsearch-2.3.4.rpm; done
+
+修改配置文件 /etc/elasticsearch/elasticsearch.yml  (es11至es15都要)
+17 cluster.name: nsd1804
+23 node.name: es1
+54 network.host: 0.0.0.0
+68 discovery.zen.ping.unicast.hosts: ["es1", "es2", "es3"]
+nds域名（etc/hosts）
+
+for i in {11..15};do scp /etc/hosts root@192.168.1.$i:/etc/;done
+systemctl restart elasticsearch.service
+elk.tar软件包   var/ftp创建public目录
+
+验证集群
+es11 ~]# curl http://192.168.1.12:9200/_cluster/health?pretty
+问题:5台配置,软件包都装好了,hosts文件有,就是每台验证时,只显示自己的集群情况,
+ "number_of_nodes" : 1,
+  "number_of_data_nodes" : 1
+es12访问es11时 es12 ~]# curl http://192.168.1.11:9200/_cluster/health?pretty
+curl: (7) Failed connect to 192.168.1.11:9200; 没有到主机的路由
+初步怀疑iptables拦截问题,在es12输入iptables -F重访问es12 ~]# curl http://192.168.1.11:9200/_cluster/health?pretty可以显示出es11机子的集群状态,最后在es11至es15的机子上都输iptables -F
+es11 ~]# curl http://192.168.1.12:9200/_cluster/health?pretty
+"number_of_nodes" : 5,
+  "number_of_data_nodes" : 5  (成功了,5台机子都显示出来)
+
+插件安装
+/usr/share/elasticsearch/bin/plugin install ftp://192.168.1.254/public/bigdesk-master.zip
+/usr/share/elasticsearch/bin/plugin install ftp://192.168.1.254/public/elasticsearch-head-master.zip
+/usr/share/elasticsearch/bin/plugin install ftp://192.168.1.254/public/elasticsearch-kopf-master.zip
+
+主机es11访问插件 head
+http://192.168.1.11:9200/_plugin/head
+访问插件 kopf
+http://192.168.1.11:9200/_plugin/kopf
+访问插件 bigdesk
+http://192.168.1.11:9200/_plugin/bigdesk
+
+创建索引(库名)
+[root@es1 ~]# curl -X "POST" "http://192.168.1.11:9200/tedu/" -d '{
+> "settings":{
+> "index":{
+> "number_of_shards":5,
+> "number_of_replicas":1
+> }
+> }
+> }'
+索引  新建索引  5   2（图形操作）nsd1804
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+增加数据（插入）
+[root@es1 ~]# curl -XPUT 'http://192.168.1.11:9200/nsd1804/teacher/1' -d '{
+"title": "阶段1",
+"name":{"first": "小逗比", "last": "牛犇"},
+"age": 25
+}'
+
+[root@es1 ~]# curl -XPUT 'http://192.168.1.11:9200/nsd1804/teacher/2' -d '{
+> "title": "阶段2",
+> "name":{"first": "老逗比", "last": "丁丁"},
+> "age": 52
+> }'
+
+
+[root@es1 ~]# curl -XPUT 'http://192.168.1.11:9200/nsd1804/teacher/3' -d '{
+> "title": "阶段3",
+> "name":{"first": "漂亮姐", "last": "静静"},
+> "age": 20
+> }'
+
+[root@es1 ~]# curl -XPUT 'http://192.168.1.11:9200/nsd1804/teacher/4' -d '{
+> "title": "阶段4",
+> "name":{"first": "老司机", "last": "欣欣"},
+> "age": 35
+> }'
+查询
+[root@es1 ~]# curl -X GET "http://192.168.1.15:9200/nsd1804/teacher/1?pretty"
+修改数据
+[root@es1 ~]# curl -X POST "http://192.168.1.11:9200/nsd1804/teacher/3/_update" -d '{
+"doc":{ "age": 18 }
+}'
+删除（库）
+[root@es1 ~]# curl -XDELETE "http://192.168.1.11:9200/nsd1804/teacher/4"（删除 阶段4 ）
+[root@es1 ~]# curl -XDELETE "http://192.168.1.11:9200/nsd1804"(nsd1804里面全部删除)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+kibana18
+kibana18 ~]# yum -y install kibana-4.5.2-1.x86_64.rpm
+
+kibana 配置 /opt/kibana/config/kibana.yml
+server.port: 5601
+server.host: "0.0.0.0"
+elasticsearch.url: "http://es11:9200"
+kibana.index: ".kibana"
+kibana.defaultAppId: "discover"
+elasticsearch.pingTimeout: 1500
+elasticsearch.requestTimeout: 30000
+elasticsearch.startupTimeout: 5000
+systemctl restart kibana.service(不成功看域名dns)
+http://192.168.1.18:5601/status
+status  

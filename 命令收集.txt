@@ -26,4 +26,9 @@ cat /etc/sysconfig/network-scripts/ifcfg-eth0
 (开启)]# for i in `virsh list --all | awk 'NR>2{print $2}'`; do virsh start $i; done
 (关闭)]# for i in `virsh list |awk 'NR>2{print $2}'`; do virsh destroy $i ; done
 
+修改ssh端口,防止同学删根(不过scp时不用加端口传输文件)
+]# vim /etc/ssh/sshd_config
+Port 888
+]# systemctl restart sshd
+]# ssh 176.121.213.82 -p 888
 

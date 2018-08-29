@@ -1,0 +1,38 @@
+
+vim /etc/logstash/logstash.conf 
+input{
+   file {
+     id => "my_plugin_id"
+   }
+}
+filter{}
+output{}
+
+input{
+   file {
+     path => ["/tmp/a.log","/var/tmp/b.log","/var/log.*"] //可支持通配符
+   }
+}
+
+echo A_${RANDOM} > /tmp/a.log
+echo B_${RANDOM} > /var.tmp/b.log
+
+/opt/logstash/bin/logstash -f logstash 
+
+
+echo 123456 >192.168.1.18
+echo 123456 >/dev/tcp/192.168.1.18/7890
+yum -y install tcpdump
+tcpdump -A -nn host 192.168.1.20 and port 22
+
+echo 1>./ff
+echo a1
+echo a2
+echo a3
+echo a4
+
+exec 1>./ff  //exec设置环境重定向
+echo a1
+echo a2
+echo a3
+echo a4
