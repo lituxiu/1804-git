@@ -404,15 +404,23 @@ qemu-img: kilobytes, megabytes, gigabytes, terabytes, petabytes and exabytes.
 错误：从 /etc/libvirt/qemu/.xml 定义域失败
 错误：丢失名称信息
 
-++++++++++++++++++++++++++++++++++++++++
+
+(背熟)++++++++++++++++++++++++++++++++++++++++
 创建后端镜像模板
 先创建# qemu-img create -f qcow2 /var/lib/libvirt/images/daxiuge888.qcow2 8G
 (如果在virt-manager图形配的后端文件,配qcow2格式,配20G就是20G,初始状态就是20G,感觉BUG,最好按以上用qemu-img先创虚拟机模板容量)
 images]# ls -lh daxiuge888.qcow2 
 -rw-r--r-- 1 root root 193K 8月  16 17:42 daxiuge888.qcow2
-再点创建虚拟机
-sed -i '/SELINUX/s/enforcing/disabled/' /etc/selinux/config
+再点创建虚拟机 CPU2核 内存2G 选择上面创建的daxiuge888.qcow2后端镜像
+(注意要点网络安装,选择自创建的vbr虚拟交换机)
+sed -i '/^SELINUX=/s/enforcing/disabled/' /etc/selinux/config
 cd /etc/yum.repos.d
+ ~]# systemctl stop firewalld
+]# systemctl disable firewalld
+Removed symlink /etc/systemd/system/multi-user.target.wants/firewalld.service.
+~]# systemctl is-enabled firewalld
+disabled
+
 [root@daxiuge yum.repos.d]# mkdir repo
 [root@daxiuge yum.repos.d]# mv C* repo/
 [root@daxiuge yum.repos.d]# ls

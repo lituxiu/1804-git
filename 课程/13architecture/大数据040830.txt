@@ -1,0 +1,18 @@
+
+secondary NameNode 秘书
+fsimage 变更日志
+
+block
+
+环境 4台2CPU 2G内存,硬盘16G
+192.168.1.10 nn01
+192.168.1.11 node1
+192.168.1.12 node2
+192.168.1.13 node3
+
+单机
+伪分布式
+完全分布式
+(前两种是在一台机器上安装的,只不过伪分布式把多几台服务都装在一台上)
+
+yum -y install java-1.8.0-openjdk  java-1.8.0-openjdk-devel
