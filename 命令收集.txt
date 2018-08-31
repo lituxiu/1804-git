@@ -34,3 +34,7 @@ Port 888
 ]# systemctl restart sshd
 ]# ssh 176.121.213.82 -p 888
 
+rpm -q httpd 查看httpd有没有安装
+rpm -qa | grep httpd 查看有没有安装包含"httpd"字符的软件包名
+rpm -qa httpd 查看httpd安装的位置
+

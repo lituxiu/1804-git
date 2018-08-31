@@ -1,3 +1,4 @@
+hadoop 01day
 
 secondary NameNode 秘书
 fsimage 变更日志
@@ -5,14 +6,194 @@ fsimage 变更日志
 block
 
 环境 4台2CPU 2G内存,硬盘16G
-192.168.1.10 nn01
-192.168.1.11 node1
-192.168.1.12 node2
-192.168.1.13 node3
+192.168.1.60 nn60    #namenode, secondarynamenode
+192.168.1.61 node61  #datanode
+192.168.1.62 node62  #datanode
+192.168.1.63 node63  #datanode
 
 单机
 伪分布式
 完全分布式
 (前两种是在一台机器上安装的,只不过伪分布式把多几台服务都装在一台上)
 
-yum -y install java-1.8.0-openjdk  java-1.8.0-openjdk-devel
+yum -y install java-1.8.0-openjdk  java-1.8.0-openjdk-devel(输入jps有反应)
+解压Hadoop.zip包把hadoop-2.7.6.tar.gz再解压 tar -xf hadoop-2.7.6.tar.gz 
+nn60 hadoop]# mv hadoop-2.7.6 /usr/local/hadoop
+nn60 hadoop]# ls /usr/local/hadoop
+bin  include  libexec      NOTICE.txt  sbin
+etc  lib      LICENSE.txt  README.txt  share
+(这是安装完毕了)
+]# cd /usr/local/hadoop (hadoop的可执行文件都在bin和sbin里)
+
+其它的3台主机61-63也装java环境
+nn60 hadoop]# for i in {61..63}
+> do
+> ssh 192.168.1.$i yum -y install java-1.8.0-openjdk  java-1.8.0-openjdk-devel
+> done
+把60装好的hadoop文件传送到其它61-63主机中
+for i in {61..63}; do scp -r /usr/local/hadoop 192.168.1.$i:/usr/local/; done
+
+nn60 hadoop]# file ./bin/hadoop  这文件本来就是一个shell脚本,里面是调用了java语句
+./bin/hadoop: a /usr/bin/env bash script, ASCII text executab
+
+nn60 hadoop]# ./bin/hadoop
+Error: JAVA_HOME is not set and could not be found.
+
+nn60 hadoop]# rpm -ql  java-1.8.0-openjdk
+在几条路径中筛选出java-1.8.0-openjdk的安装路径是/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.131-11.b12.el7.x86_64/jre/
+
+nn60 hadoop]# ls /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.131-11.b12.el7.x86_64/jre/
+bin  lib
+
+nn60 hadoop]# pwd
+/usr/local/hadoop
+@nn60 hadoop]# vim etc/hadoop/hadoop-env.sh
+把export JAVA_HOME=${JAVA_HOME}改为
+export JAVA_HOME="/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.131-11.b12.el7.x86_64/jre/"
+把export HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-"/etc/hadoop"}改为
+export HADOOP_CONF_DIR="/usr/local/hadoop/etc/hadoop"
+:wq保存退出
+
+nn60 hadoop]# ./bin/hadoop
+不显示Error了,最后显示Most commands print help when invoked w/o parameters.
+查看hadoop版本
+nn60 hadoop]# ./bin/hadoop version
+Hadoop 2.7.6
+Subversion https://shv@git-wip-us.apache.org/repos/asf/hadoop.git -r 085099c66cf28be31604560c376fa282e69282b8
+Compiled by kshvachk on 2018-04-18T01:33Z
+Compiled with protoc 2.5.0
+From source with checksum 71e2695531cb3360ab74598755d036
+This command was run using /usr/local/hadoop/share/hadoop/common/hadoop-common-2.7.6.jar
+以上的hadoop单机版安装完毕了
+
+++++++++++++++++++华丽的分隔线+++++++++++++++
+nn60 hadoop]# mkdir aa
+[root@nn60 hadoop]# ls
+aa   etc      lib      LICENSE.txt  README.txt  share
+bin  include  libexec  NOTICE.txt   sbin
+nn60 hadoop]# cp *.txt aa/
+nn60 hadoop]# ls aa/
+LICENSE.txt  NOTICE.txt  README.txt (是一大堆英文文档)
+问题:用hadoop找出aa文件夹里的哪个单词出现次数最多(统计中文比统计英文难多了)
+热点词--> 假疫苗
+
+nn60 hadoop]# pwd
+/usr/local/hadoop
+统计aa文件夹里的哪个单词出现次数最多
+nn60 hadoop]# bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar wordcount aa xx (如果运行一次后,再运行会出错,因为在目录下已生成一个名为xx存放统计结果的文件夹了)
+   ..	File Output Format Counters 
+		Bytes Written=30538
+nn60 hadoop]# ls
+aa   etc      lib      LICENSE.txt  README.txt  share
+bin  include  libexec  NOTICE.txt   sbin        xx
+(目录下多了一个xx文件了)
+cd  xx/  进入xx/文件夹
+cat *    查看所有
+   ..
+  that	119
+  that:	1
+  the	      701
+  their	7
+  them,	1
+   ..
+发现the单词出现的次数最多701次
+
+解析:bin/hadoop是原始命令 
+jar是表示要运行一个java程序
+share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar表示java程序路径
+wordcount表示单词次数统计功能
+oo表示原被统计的文件夹
+xx表示存放统计结果的文件夹
+  
+nn60 hadoop]# bin/hadoop  -->直接就是hadoop帮助文档
+nn60 hadoop]# bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar  -->也是帮助文档,兴例子怎么使用
+ ..
+   wordcount: A map/reduce program that counts the words in the input files.
+..
+
+这个jar包是大数据的一个同学写出来的
+
++++++++++++++++++++华丽的分隔线++++++++++++++++++
+hadoop伪分布式一般用来学习和测度的功能,与完全分布式类似
+
+完全分成式(6个配置文件)
+hadoop-env.sh 环境变量配置文件(必改)
+core-site.xml 全局配置文件(必改)
+hdfs
+mapred
+yarn
+slaves 声明文件
+
+环境 4台2CPU 2G内存,硬盘16G
+192.168.1.60 nn60    #namenode, secondarynamenode
+192.168.1.61 node61  #datanode
+192.168.1.62 node62  #datanode
+192.168.1.63 node63  #datanode
+
+集群组建条件:
+1 ALL: 能相互 ping 通 (配置 /etc/hosts)
+2 ALL: 安装 java-1.8.0-openjdk-devel
+3 NN1: 能 ssh 免密登录所有集群主机，包括自己(不能提示输入 yes)
+  ssh 免密登录，部署 sshkey
+  不输入 yes，修改 /etc/ssh/ssh_config
+  60行添加  StrictHostKeyChecking no
+for i in node{61..63} nn60 ; do ssh $i systemctl restart sshd; done
+
+core-site.xml 全局配置文件
+<property>
+  <name>关键字</name>
+  <value>变量值</value>
+  <description> 描述 </description>
+</property>
+
+hadoop集群特别依赖域名解析,要求正向和反向解析都成功(要4台都设置/etc/hosts)
+
+查看hadoop版本
+nn60 hadoop]# bin/hadoop version
+Hadoop 2.7.6
+修改配置文件时,可参考官网手册hadoop.apache.org(网页的左下角Documentation菜单,找到Release2.7.6版本,再点开!还是找左下角)
+Configuration
+ core-default.xml      ----->core-site.xml
+ hdfs-default.xml      ----->hdfs-site.xml
+ mapred-default.xml    ----->mapred-site.xml
+ yarn-default.xml      ----->yarn-site.xml
+ Deprecated Properties
+
+cor-site.xml
+<property>
+  <name></name>
+  <value></value>
+  <description></description>  说明这里可不填
+</property>
+
+完全分布式
+• HDFS 完全分布式系统配置(修改4个文件)
+环境配置文件 hadoop-env.sh
+核心配置文件 core-site.xml
+HDFS配置文件 hdfs-site.xml
+节点配置文件 slaves
+
+在google的手册网页面,按Ctrl+f查找fs.defaultFS和hadoop.tmp.dir
+fs.defaultFS 支持本地存储file:///,云存储
+hadoop.tmp.dir 所有集群运行的根目录
+
+nn60 hadoop]# vim etc/hadoop/core-site.xml
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://nn61:9000</value>
+  </property>
+  <property>
+    <name>hadoop.tmp.dir</name>
+    <value>/var/hadoop</value>
+  </property>
+</configuration>
+:wq保存后,也在每台主机里创建/var/hadoop目录
+nn60 hadoop]# for i in {60..63}
+> do
+> ssh 192.168.1.$i mkdir /var/hadoop
+> done
+
+
+
+
