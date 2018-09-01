@@ -1,0 +1,176 @@
+hadoop 02day
+完全分布式集群搭建--HDFS(已完成)
+192.168.1.60 nn60    #namenode, secondarynamenode
+192.168.1.61 node61  #datanode
+192.168.1.62 node62  #datanode
+192.168.1.63 node63  #datanode
+
+++++++++++++华丽的分隔线++++++++++++++
+192.168.1.60 nn60    #namenode, secondarynamenode (前两个主要消耗磁盘IO,存储images),ResourceManager(分派运算,消耗少量cpu)
+192.168.1.61 node61  #datanode, NodeManager
+192.168.1.62 node62  #datanode, NodeManager
+192.168.1.63 node63  #datanode, NodeManager
+                        (存储数据主要消耗磁盘IO)  (计算节点,主要消耗CPU) 
+以上这样分配是为了前者和后者不会产生激列争用资源,互补,资源得到最大化利用,节省机器
+
+<property>
+  <name></name>
+  <value></value>
+</property>
+
+修改mapred-site.xml配置文件
+nn60 hadoop]# mv etc/hadoop/mapred-site.xml.template  etc/hadoop/mapred-site.xml
+nn60 hadoop]# vim etc/hadoop/mapred-site.xml
+<configuration>
+<property>
+  <name>mapreduce.framework.name</name>
+  <value>yarn</value>
+</property>
+</configuration>
+
+修改yarn-site.xml配置文件
+nn60 hadoop]# vim etc/hadoop/yarn-site.xml
+<configuration>
+<property>
+  <name>yarn.resourcemanager.hostname</name>
+  <value>nn60</value>
+</property>
+<property>
+  <name>yarn.nodemanager.aux-services</name>
+  <value>mapreduce_shuffle</value>
+</property>
+</configuration>
+
+ALL: 同步配置到主机
+nn60: 启动服务 ./sbin/start-yarn.sh  (停止是./sbin/stop-yarn.sh)
+nn60 hadoop]# ./sbin/start-yarn.sh 
+
+ALL: 验证角色 jps 
+nn60 hadoop]# jps
+4209 NameNode
+5409 ResourceManager
+4404 SecondaryNameNode
+5670 Jps
+(比昨天多了一行ResourceManager)
+node61 logs]# jps
+1874 DataNode
+2154 NodeManager
+2270 Jps
+
+nn60: 验证节点状态 ./bin/yarn node -list
+ hadoop]# ./bin/yarn node -list
+18/09/01 15:22:21 INFO client.RMProxy: Connecting to ResourceManager at nn60/192.168.1.60:8032
+Total Nodes:0
+         Node-Id	     Node-State	Node-Http-Address	Number-of-Running-Containers
+这样是显示集群没有组建成功
+先停止集群
+nn60 hadoop]# ./sbin/stop-yarn.sh
+没有组建集群成功的是因为在nn60的配置文件没有同步到node61-63
+nn60 ~]# ./rrr.sh node{61..63}
+nn60 hadoop]# ./sbin/start-yarn.sh
+nn60 hadoop]# ./bin/yarn node -list
+Total Nodes:3
+         Node-Id	     Node-State	Node-Http-Address	Number-of-Running-Containers
+    node61:45220	        RUNNING	      node61:8042	                           0
+    node62:35091	        RUNNING	      node62:8042	                           0
+    node63:39478	        RUNNING	      node63:8042	
+这样才是显示集群的状态是成功的
+
+namenode web 地址 http://192.168.1.60:50070
+sedondary namenode web 地址 http://192.168.1.60:50090
+yarn resourcemanager 管理地址 http://192.168.1.60:8088
+datanode web 地址 http://192.168.1.61:50075
+nodemanager web 地址 http://192.168.1.61:8042
+
+nn60 sbin]# pwd
+/usr/local/hadoop/sbin
+nn60 sbin]# ./stop-all.sh  关闭hadoop所有服务
+nn60 sbin]# ./start-all.sh 开始hadoop所有服务
+
++++++++++HDFS基本使用+++++++++华丽的分隔线+++++++++++++
+HDFS基本使用
+nn60 hadoop]# ./bin/hadoop fs
+回车后列出的命令是HDFS可以调用的命令
+
+nn60 hadoop]# ./bin/hadoop fs -ls /
+nn60 hadoop]# ./bin/hadoop fs -mkdir /dxg
+nn60 hadoop]# ls /
+bin   dev  home  lib64  mnt  proc  run   srv  tmp  var
+boot  etc  lib   media  opt  root  sbin  sys  usr
+[root@nn60 hadoop]# ./bin/hadoop fs -ls /
+Found 1 items
+drwxr-xr-x   - root supergroup          0 2018-09-01 16:32 /dxg
+(集群文件系统是在网络上,不是在本机,虚拟出来的)
+
+nn60 hadoop]# ls
+aa   etc      lib      LICENSE.txt  NOTICE.txt  sbin   xx
+bin  include  libexec  logs         README.txt  share
+nn60 hadoop]# ./bin/hadoop fs -ls /dxg
+上传本地文件到hadoop集群网络文件系统上
+nn60 hadoop]# ./bin/hadoop fs -put *.txt /dxg
+nn60 hadoop]# ./bin/hadoop fs -ls /dxg
+Found 3 items
+-rw-r--r--  2 root supergroup 86424 2018-09-01 16:41 /dxg/LICENSE.txt
+-rw-r--r--  2 root supergroup 14978 2018-09-01 16:41 /dxg/NOTICE.txt
+-rw-r--r--   2 root supergroup       1366 2018-09-01 16:41 /dxg/README.txt
+从hadoop集群网络文件系统上下载文件回本地主机
+nn60 hadoop]# cd 
+nn60 ~]# ls
+hadoop  Hadoop.zip  rrr.sh
+nn60 ~]# /usr/local/hadoop/bin/hadoop fs -get /dxg/README.txt
+nn60 ~]# ls
+hadoop  Hadoop.zip  README.txt  rrr.sh
+
+统计hadoop集群文件系统上的文件/dxg
+nn60 hadoop]# ./bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar  wordcount /dxg /abc
+[root@nn60 hadoop]# ls
+aa   etc      lib      LICENSE.txt  NOTICE.txt  sbin   xx
+bin  include  libexec  logs         README.txt  share
+那个存放分析结查的abc文件是存放在网络文件系统上了
+nn60 hadoop]# ./bin/hadoop fs -ls /
+Found 3 items
+drwxr-xr-x   - root supergroup          0 2018-09-01 17:04 /abc
+drwxr-xr-x   - root supergroup          0 2018-09-01 16:41 /dxg
+drwx------   - root supergroup          0 2018-09-01 17:04 /tmp
+查看分析结果
+nn60 hadoop]# ./bin/hadoop fs -cat  /abc/*
+   ..
+  that	119
+  that:	1
+  the	      701
+  their	7
+  them,	1
+   ..
+
++++++++++HDFS节点管理+++++++++华丽的分隔线+++++++++++++
+增加节点
+vim /etc/hosts
+192.168.1.60 nn60
+192.168.1.61 node61
+192.168.1.62 node62
+192.168.1.63 node63
+192.168.1.64 node64
+
+ssh-copy-id node64
+ssh node64 yum -y install java-1.8.0-openjdk java-1.8.0-openjdk-devel;mkdir /var/hadoop
+scp -r /usr/local/hadoop/* node64:/usr/local/hadoop/
+vim etc/hadoop/slaves
+node61
+node62
+node63
+node64
+
+./rrr.sh node{61..64}
+./sbin/stop-all.sh 
+./sbin/start-all.sh 
+for i in node{61..64}; do echo ------------$i-----------; ssh $i jps; done
+
+
+
+
+
+
+
+
+
+

@@ -1,5 +1,29 @@
 hadoop 01day
 
+大数据特性(5V)
+大体量
+多样性
+时效性
+准确性
+石价值
+
+Hadoop 的三大核心组件是什么?
+Hdfs是分布式文件系统
+Mapreduce是分布式计算框架
+Yarn是集群资源管理系统
+
+hadoop
+是一种分析和处理海量数据的软件平台
+是一款开源软件,使用JAVA开发
+可以提供一个分布式基础架构
+hadoop特点(5点)
+高可靠性,高扩展性,高效性,高容错性,低成本
+
+Hadoop 的部署模式有三种
+单机
+伪分布式
+完全分布式
+
 secondary NameNode 秘书
 fsimage 变更日志
 
@@ -102,7 +126,7 @@ cat *    查看所有
 jar是表示要运行一个java程序
 share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar表示java程序路径
 wordcount表示单词次数统计功能
-oo表示原被统计的文件夹
+aa表示原被统计的文件夹
 xx表示存放统计结果的文件夹
   
 nn60 hadoop]# bin/hadoop  -->直接就是hadoop帮助文档
@@ -181,7 +205,7 @@ nn60 hadoop]# vim etc/hadoop/core-site.xml
 <configuration>
   <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://nn61:9000</value>
+    <value>hdfs://nn60:9000</value>
   </property>
   <property>
     <name>hadoop.tmp.dir</name>
@@ -194,6 +218,80 @@ nn60 hadoop]# for i in {60..63}
 > ssh 192.168.1.$i mkdir /var/hadoop
 > done
 
+nn60 hadoop]# vim etc/hadoop/hdfs-site.xml 
+<configuration>
+  <property>
+    <name>dfs.namenode.http-address</name>
+    <value>nn60:50070</value>    设置在那台机器启动namenode
+  </property>
+  <property>
+    <name>dfs.namenode.secondary.http-address</name>
+    <value>nn60:50090</value>      设置在那台机器启动secondarynamenode
+  </property>
+  <property>
+    <name>dfs.replication</name>
+    <value>2</value>   1个数据总共存几份
+  </property>
+</configuration>
 
+NN1: 配置 slaves
+nn60 hadoop]# vim etc/hadoop/slaves
+node61
+node62
+node63
 
+ALL: 同步配置到所有主机
+#!/bin/bash
+function syncfile(){
+    for host in $@;do
+        rsync -aSH --delete /usr/local/hadoop/etc ${host}:/usr/local/hadoop/ -e 'ssh' &
+        rsync /etc/hosts ${host}:/etc/hosts
+    done
+    wait
+}
+
+if (( $# > 0 ));then
+   syncfile $@
+else
+   echo "${0} host1 host2 host3 ... ... host(N)"
+fi
+运行同步脚本
+nn60 ~]# ./rrr.sh node{61..63}
+
+nn60: 格式化 namenode
+nn60 hadoop]# ./bin/hdfs namenode -format
+has been successfully formatted. 看到这是比示格式化成功了
+SHUTDOWN_MSG: Shutting down NameNode at nn60/192.168.1.60
+
+nn60: 启动集群 ./sbin/start-dfs.sh
+nn60 hadoop]# ./sbin/start-dfs.sh  (停止集群可以使用 ./sbin/stop-dfs.sh)
+验证nn60 hadoop]# jps
+2760 Jps  只显示一个证明集群不成功
+
+问题:hdfs://路径设置错误
+检查发现在./sbin/start-dfs.sh时提示java.net.UnknownHostException: nn61
+再去检查发现 etc/hadoop/core-site.xml
+<name>fs.defaultFS</name>
+    <value>hdfs://nn61:9000</value>
+然后把61改为60就是正确的主机名,再重新格式化和启动就可
+nn60 hadoop]# jps
+3285 NameNode
+3654 Jps
+3480 SecondaryNameNode  集群启动成功了
+
+ALL: 验证角色 jps
+
+nn60: 验证集群是否组建成功
+./bin/hdfs dfsadmin -report
+只看到几行,且未看到Live datanodes (3):下的三台datanode主机内容
+问题检测发现,是由于nn60主机防火墙开启问题,systemctl stop/disable firewalld 后再重新./bin/hdfs dfsadmin -report 可看到Live datanodes (3)的内台,(3)表示3台主机
+
+服务启动日志路径 /usr/local/hadoop/logs(启动后才生成)
+(hadoop服务,启动用户,角色)
+hadoop-root-namenode-nn60.log
+hadoop-root-namenode-nn60.out
+hadoop-root-secondarynamenode-nn60.log
+hadoop-root-secondarynamenode-nn60.out
+
+网络通讯5源址??
 
