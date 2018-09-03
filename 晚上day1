@@ -1,0 +1,3 @@
+OSPF:(Open Shortest Path First开放式最短路径优先）,与静态相比,是一个进程,耗资源.
+
+尽量用私有地址,要不与到DNS解析的IP重叠就访问不了internet公网地址,因为DNS解析你的主机IP就是它
