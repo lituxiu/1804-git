@@ -28,13 +28,16 @@ cat /etc/sysconfig/network-scripts/ifcfg-eth0
 (开启)]# for i in `virsh list --all | awk 'NR>2{print $2}'`; do virsh start $i; done
 (关闭)]# for i in `virsh list |awk 'NR>2{print $2}'`; do virsh destroy $i ; done
 
-修改ssh端口,防止同学删根(不过scp时不用加端口传输文件)
+修改ssh端口,防止同学删根
 ]# vim /etc/ssh/sshd_config
 Port 888
 ]# systemctl restart sshd
 ]# ssh 176.121.213.82 -p 888
+scp -r -P 888 '/root/桌面/1804-git/zuihou01PXE.txt' 176.121.213.77:/root/桌面/ 
+
 
 rpm -q httpd 查看httpd有没有安装
 rpm -qa | grep httpd 查看有没有安装包含"httpd"字符的软件包名
 rpm -qa httpd 查看httpd安装的位置
 
+yum erase -y httpd  从系统中移除一个或多个软件包
