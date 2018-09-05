@@ -15,6 +15,9 @@ RANDOM函数
 shell有一个环境变量RANDOM,范围是0--32767
 如果我们想要产生0-25范围内的数：$(($RANDOM%26))
 
+ping -c2 -i0.3 -W1 192.168..4.$i
+c:count次数  i:interval间隔 W:timeout超时 w:deadline最后期限
+
 查看有多少远程ip在连接主机（不管是通过ssh还是web和ftp都统计）
  netstat -atn | awk '{print $5}'| sort -nr | uniq -c   
 （sort按数字大小排序，uniq将多余重复删除-c是统计重复次数）
