@@ -11,6 +11,9 @@ shell命名规则
 stty -echo 去显显示(在屏幕上看不到字母的输入)
 stty echo 恢复正常显示
 
+echo 123456 |passwd --stdin user1
+change -d0 user1 第一次登录就强制改user1的密码
+
 RANDOM函数
 shell有一个环境变量RANDOM,范围是0--32767
 如果我们想要产生0-25范围内的数：$(($RANDOM%26))

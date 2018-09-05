@@ -1,0 +1,40 @@
+RAID1E:增强的RAID1,3块以上,空间利用率也是%50
+RAID5:相当于是RAID0和RAID1的折中,空间利用率是(n-1)/n,但不是拿一块盘写校验,分散在每个盘用,最多坏一块
+RAID6:有2块盘的空间写校验,4块以上,
+RAID10:RAID1和RAID0的组合,同时关心性能和容错
+RAID50:
+
+dell raid配置
+
+
+未行:3,7s/^/    /回车
+ 1 #!/bin/bash
+  2 number=5
+  3     a
+  4     b
+  5     c
+  6     d
+  7     e
+  8  
+
+~]# cat user.sh 
+#!/bin/bash
+number=$1
+counter=0
+while [ $counter -lt $number  ]
+do
+let n++
+id user$n >/dev/null
+if [ $? -ne 0 ];then
+useradd user$n
+echo 123456 |passwd --stdin user$n
+chage -d0 user$n
+let counter++
+echo -e "create user$n\t\t\t\033[32;1m[done] \033[0m"
+fi
+done
+
+/tmp/和/var/tmp都是有粘滞位,不同用户只能自己删除自己创建的文件
+
+
+
