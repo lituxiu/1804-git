@@ -1,0 +1,15 @@
+[Unit]
+Description=Redis In-Memory Data Store
+After=network.target
+
+[Service]
+User=redis
+Group=redis
+Type=simple
+ExecStart=/usr/local/redis/bin/redis-server /usr/local/redis/conf/redis.conf
+ExecStop=/usr/local/redis/bin/redis-cli shutdown
+Restart=always
+RestartSec=42s
+
+[Install]
+WantedBy=multi-user.target

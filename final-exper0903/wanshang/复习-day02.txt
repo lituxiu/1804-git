@@ -1,0 +1,96 @@
+IP地址分类：
+A：前8位是网络，第1位必须是0
+B：前16位是网络，第2位必须是10
+C：前24位是网络，前3位必须是110
+D：用于多播（组播），前4位必须是1110
+E：保留，研究
+
+  0 0000001 ～0 1111111
+  10 000000 ～10 111111
+
+设备只认识2进制数，前N位是网络，后N位是主机。
+子网掩码：2进制下，网络位全是1，主机位全是0。
+192.168.1.10
+192.168.2.5
+255.255.0.0
+255.255.255.0
+ 11000000 10101000 00000001 00001010
+ 11000000 10101000 00000010 00000101
+ 11111111 11111111 00000000 00000000
+ 11111111 11111111 11111111 00000000
+
+Linux最少需要几个分区？ 1个
+
+c: 100G 只装系统
+D：200G 只装软件
+E：剩余的1/2，存常用文件
+F：剩余空间，不常文件
+
+/boot:
+/home:
+/var:
+
+文件系统
+ext3: rhel5
+ext4: rhel6
+xfs: rhel7
+
+ext3/4:适合小文件
+xfs:适合大文件
+
+命令提示符使用PS1定义
+[root@node1 ~]# PS1='\u@\t \$ '
+root@19:40:28 # PS1='[\u@\h \W] \$ '
+列出内核版本
+[root@node1 ~]# uname -r
+查看文件的第五行
+[root@node1 ~]# head -5 /etc/passwd | tail -1
+只显示文件中匹配到的模式
+[root@node1 ~]# egrep -o 'root|adm' /etc/passwd
+显示行号
+[root@node1 ~]# grep -n 'adm' /etc/passwd
+显示找到内容的前两行和后3行
+[root@node1 ~]# grep -B2 -A3 -n 'adm' /etc/passwd
+
+Linux命令查找顺序
+函数 > 别名 > 内部命令 > 外部命令
+[root@node1 ~]# vim ~/.bashrc 
+lh() {
+    ls -lh $*
+}
+[root@node1 ~]# source ~/.bashrc
+[root@node1 ~]# type lh
+[root@node1 ~]# type ls
+外部命令需要有一个可执行文件与之对应，内部命令就像是系统与生俱来的功能一样，不用有文件与之对应。
+[root@node1 ~]# enable  列出内部命令
+
+vi的三种模式：命令、编辑、末行
+
+配置yum安装的软件包放到缓存里一份
+[root@node1 ~]# vim /etc/yum.conf
+keepcache=1
+缓存文件目录是
+cachedir=/var/cache/yum/$basearch/$releasever
+
+输出重定向。>后面的文件不存在就创建，存在则覆盖
+[root@node1 ~]# ls > /tmp/list.out
+错误重定向
+[root@node1 ~]# ls abc 2> /tmp/list.err
+[root@node1 ~]# ls anaconda-ks.cfg abc 2> /tmp/list.err > /tmp/list.out
+[root@node1 ~]# ls anaconda-ks.cfg abc &> /tmp/list.all
+如果不希望覆盖文件，而是追加，只要使用>> 或 2>> 或&>>
+
+输入重定向用<
+[root@node1 ~]# tr 'a-z' 'A-Z' < ~/.bashrc 
+[root@node1 ~]# tr 'a-z' 'A-Z' < ~/.bashrc > aaa
+
+两个小于号是结束标志，在单独的一行只有end才结束
+[root@node1 ~]# tr 'a-z' 'A-Z' <<end
+
+查找/boot下以vmlinuz开头的文件
+[root@node1 ~]# find /boot -name 'vmlinuz*'
+查找/boot下大于3M的文件
+[root@node1 ~]# find /boot -size +3M
+查找/boot下最近3天内改过的文件
+[root@node1 ~]# find /boot -mtime -3
+

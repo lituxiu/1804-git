@@ -1,0 +1,151 @@
+NFS 搭建
+nfs 用来解决数据共享问题，配置文件 exports
+/var/webroot	192.168.1.0/24(rw,all_squash,anonuid=1000,anongid=1000,async)
+
+客户机添加配置文件 fstab
+192.168.1.16:/var/webroot	/var/webroot	nfs	 defaults,proto=tcp,nosuid,noexec,nodev,noatime,nodiratime,intr,rsize=65536,wsize=65536	0 0
+
+php session 共享 （redis）
+1、redis 数据库安装
+adduser -s /sbin/nologin -d /var/lib/redis redis
+make MALLOC=libc
+make PREFIX=/usr/local/redis install
+mkdir -p /usr/local/redis/conf
+cp redis.conf /usr/local/redis/conf/
+
+修改配置文件
+bind 192.168.1.18
+port 6379
+dir /var/lib/redis
+
+启动脚本 redis.service
+[Unit]
+Description=Redis In-Memory Data Store
+After=network.target
+
+[Service]
+User=redis
+Group=redis
+Type=simple
+ExecStart=/usr/local/redis/bin/redis-server /usr/local/redis/conf/redis.conf
+ExecStop=/usr/local/redis/bin/redis-cli shutdown
+Restart=always
+RestartSec=42s
+
+[Install]
+WantedBy=multi-user.target
+
+
+2、安装 php redis 扩展
+cd phpredis
+git checkout 3.1.6
+./configure --enable-redis --with-php-config=/usr/local/php/bin/php-config
+make
+cp .libs/redis.so  /usr/local/php/lib/php/extensions/
+
+编辑 php.ini 加载配置
+extension_dir = "/usr/local/php/lib/php/extensions"
+extension=redis
+
+验证配置
+php -m |grep redis
+
+3、添加配置，让 php session 使用 redis
+修改 session.save_handler = files  为  session.save_handler = redis
+修改 ;session.save_path = "/tmp"   为  session.save_path = "tcp://192.168.1.18:6379"
+
+使用 php 脚本测试
+<?PHP
+  echo "<pre>";
+  session_id('test-redis-session');
+  session_start();
+  if(isset($_GET["d"])) {
+    foreach($_SESSION as $sid => $value){
+        unset($_SESSION[$sid]);
+    }
+    session_destroy();
+  }
+  if(isset($_GET["w"])) {
+    $_SESSION['a']=1;
+    $_SESSION['b']=2;
+    $_SESSION['c']=3;
+  }
+  
+  print_R(session_id().":\n");
+  print_R($_SESSION);
+  echo "</pre>"."\n";
+?>
+
+redis 服务器高可用
+redis集群实现大概有以下几种方式：
+
+1.redis-cluster，  官方提供的集群搭建方案（过于重量级，比较适合后期数据量较大的时候的使用）
+2.redis+keepalive  虚拟IP，多台配置非常复杂，不宜维护，需要 slaveof no one 脚本
+3.redis+zookeeper  需要引入zookeeper，对现有代码变动较大
+4.redis+sentinel   redis自带监控中间件
+
+1、配置三台 redis 服务器
+配置主从关系，在 slave 上添加配置
+slaveof 192.168.1.18 6379
+
+添加哨兵监控 sentinel.conf
+修改配置文件 sentinel.conf
+bind 0.0.0.0
+port 26379
+protected-mode no
+daemonize yes
+sentinel monitor mymaster 192.168.1.18 6379 2
+
+分别在主，从上启动 sentinel
+bin/redis-sentinel conf/sentinel.conf
+
+连接 26379 校验配置
+查看 master 信息
+redis-cli -h 192.168.1.18 -p 26379
+INFO sentinel
+
+也可以写成系统服务
+[Unit]
+Description=Redis Monitor
+After=redis.service
+
+[Service]
+Type=forking
+ExecStart=/usr/local/redis/bin/redis-sentinel /usr/local/redis/conf/sentinel.conf
+ExecStop=/usr/local/redis/bin/redis-cli -p 26379 shutdown
+Restart=always
+RestartSec=42s
+
+[Install]
+WantedBy=multi-user.target
+
+客户端兼容问题
+客户端程序（如PHP程序）连接redis时需要ip和port，但redis-server进行故障转移时，主是变化的，所以ip地址也是变化的
+客户端程序如何感知当前主redis的ip地址和端口呢？
+redis-sentinel提供了接口，请求任何一个sentinel，发送SENTINEL get-master-addr-by-name <master name>就能得到当前主redis的ip和port。
+
+解决方案1： 
+    程序兼容，优势：扩展性好，运维成本低
+              劣势：开发成本高，连接变成 2 次
+
+解决方案2:
+    vip 漂移，优势：程序端无感知，架构不需要改变
+              劣势：集群庞大时配置管理复杂，运维成本高
+
+方案2：
+    增加配置切换脚本 sentinel.conf
+    sentinel client-reconfig-script mymaster /usr/local/redis/conf/reconfig.sh
+
+reconfig.sh
+#!/bin/bash
+# args=(<master-name> <role> <state> <from-ip> <from-port> <to-ip> <to-port>)
+#         mymaster    leader  start   old.ip     old.port   new.ip  new.port
+logger -p local0.info -t redis "${@:-NULL}"
+vip="192.168.1.100/32"
+read oldip newip <<<"$4 $6"
+if $(ip -o a s |grep -q ${oldip:-0.0.0.0});then
+    /sbin/ifconfig eth0:1 down &>/dev/null
+elif $(ip -o a s|grep -q ${newip:-0.0.0.0});then
+   /sbin/ifconfig eth0:1 ${vip}
+   /sbin/arping -q -c 3 -A ${vip%/*} -I eth0
+fi

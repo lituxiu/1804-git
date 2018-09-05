@@ -1,0 +1,14 @@
+
+yum问题一：httpd-2.4.6-40.el7.x86_64.rpm 的公钥尚未安装
+是由于gpgcheck没有设置为0
+
+ssh连接不上
+ssh: connect to host 192.168.1.81 port 22: Connection refused
+原因1:sshd_conf里的端口不是设置为22 ,经查看/etc/ssh/sshd_conf配置文件发瑞里port端口是设置为10022,再 ssh 192.168.1.81 -p10022连接成功了
+
+php-fpm服务起不来,
+报错 (code=exited, status=78)
+方法一:netstat -ntlp | grep 9000
+kill -9 1614
+service php-fpm start
+方法二是/usr/local/php/etc/php-fpm.d/www.conf配置文件里有错(我是在里面加了#注译出错的,PHP是;分号注释)

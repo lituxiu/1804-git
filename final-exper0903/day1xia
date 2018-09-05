@@ -1,0 +1,456 @@
+virsh start --console node2
+
++++++++++++++++++++
+nginx编译安装
+
+nginx-1.10-3.x86_64.rpm 编译好的二进制可执行文件
+nginx-1.10-3.src.rpm 源码包
+
+nginx 01]# ls
+01.txt        myconf.patch             php-7.2-2.x86_64.rpm
+conf          nginx-1.10-3.src.rpm     tftpboot
+dhcpd         nginx-1.10-3.x86_64.rpm  vsftpd.conf
+dnsmasq.conf  php-7.2-2.src.rpm
+(nginx-1.10-3.x86_64.rpm 编译好的二进制可执行文件
+nginx-1.10-3.src.rpm 源码包 )
+
+开始制作nginx源码的rpm包
+nginx 01]# rpm -ivh nginx-1.10-3.src.rpm
+nginx 01]# ls /root
+ rpmbuild
+nginx ~]# ls rpmbuild/
+SOURCES  SPECS
+(SOURCES文件夹里是放源码包,SPECS是应答文件)
+rpmbuild]# ls SOURCES/
+conf.patch  myconf.patch  nginx-1.10.3.tar.gz  nginx.service
+nginx rpmbuild]# ls SPECS/
+nginx.spec
+
+nginx rpmbuild]# vim SPECS/nginx.spec
+Name:		nginx
+Version:	1.10  (版本号)
+Release:	3     (稳定版本号)
+Summary:(说明) NGINX is the fastest growing and highest performing software for modern web architectures.   
+
+Group:		mysoft
+License:	GPLv2
+URL:		http://nginx.org/
+Source0:	nginx-%{version}.%{release}.tar.gz
+Source1:	myconf.patch
+Source2:	nginx.service
+Source3:	conf.patch
+BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+
+%define		debug_package %{nil}
+BuildRequires:(编译所需要的依赖包) glibc gcc perl pkgconfig zlib-devel lua-devel pcre-devel openssl-devel nss-devel  
+Requires:(安装所需要的依赖包) nss-tools nss-util bash lua pcre openssl
+Packager:	luck (作者)
+%description  (描述信息)
+	Nginx WWW services .
+
+%prep  (从这里开始安装)
+%setup -q -c -n nginx-1.10.3  (解包)
+
+%build
+cd nginx-%{version}.%{release} 
+./configure --prefix=/usr/local/nginx \  (在这里开始configure配置)
+--with-http_ssl_module --with-http_v2_module \
+--with-http_realip_module --with-http_stub_status_module --with-pcre \
+--without-mail_pop3_module --without-mail_imap_module --without-mail_smtp_module
+make (make编译)
+
+%install
+cd nginx-%{version}.%{release}
+make DESTDIR=${RPM_BUILD_ROOT} install (make install安装)
+cd %{buildroot}/usr/local/nginx
+cp %{SOURCE1} %{buildroot}/usr/local/nginx/conf/
+patch -p1 -i %{SOURCE3}
+mkdir -p %{buildroot}/{usr/lib/systemd/system,var/log/weblog}
+cp %{SOURCE2} %{buildroot}/usr/lib/systemd/system/
+
+%clean
+rm -rf %{buildroot} %{_builddir}
+
+%files  (files是作成rpm包是那此文件要打包)
+%defattr(-,root,root,-)
+/usr/local/nginx
+/usr/lib/systemd/system/nginx.service
+%defattr(-,web,web,0775)
+/var/log/weblog
+
+%pre (安装rpm包前要执行的命令)
+if  ! $(id web &>/dev/null);then
+    groupadd -g 1000 web
+    useradd -u 1000 -g 1000 web -s /sbin/nologin
+fi
+
+%post (安装rpm包后要执行的命令)
+
+%preun (卸载rpm包前要执行的命令,先停服务)
+systemctl stop nginx
+
+%postun (卸载rpm后前要执行的命令,清除缓存文件)
+rm -rf /var/cache/nginx
+
+%changelog
+
+++++++++++++++++++华丽的分隔线++++++++++
+nginx rpmbuild]# ls
+SOURCES  SPECS
+
+root@nginx rpmbuild]# rpmbuild -bs SPECS/nginx.spec 
+写道:/root/rpmbuild/SRPMS/nginx-1.10-3.src.rpm
+(-bs是用源码和SPRMS文件创建一个rpm的源码包,在SPRMS里有个nginx-1.10-3.src.rpm)
+nginx rpmbuild]# tree
+├── BUILD
+├── BUILDROOT
+├── RPMS
+├── SOURCES
+│   ├── conf.patch
+│   ├── myconf.patch
+│   ├── nginx-1.10.3.tar.gz
+│   └── nginx.service
+├── SPECS
+│   └── nginx.spec
+└── SRPMS
+    └── nginx-1.10-3.src.rpm
+nginx rpmbuild]# rpmbuild -bb SPECS/nginx.spec 
+错误：构建依赖失败：
+	gcc 被 nginx-1.10-3.x86_64 需要
+	zlib-devel 被 nginx-1.10-3.x86_64 需要
+	lua-devel 被 nginx-1.10-3.x86_64 需要
+	pcre-devel 被 nginx-1.10-3.x86_64 需要
+	openssl-devel 被 nginx-1.10-3.x86_64 需要
+	nss-devel 被 nginx-1.10-3.x86_64 需要
+nginx rpmbuild]# yum -y install glibc gcc perl pkgconfig zlib-devel lua-devel pcre-devel openssl-devel nss-devel
+
+nginx rpmbuild]# rpmbuild -bb SPECS/nginx.spec 
+(之后开始编译安装)
+nginx rpmbuild]# tree
+├── BUILDROOT
+├── RPMS
+│   └── x86_64
+│       └── nginx-1.10-3.x86_64.rpm  比上面tree结构多出个编译好的二进制可执行rpm包
+├── SOURCES
+│   ├── conf.patch
+│   ├── myconf.patch
+│   ├── nginx-1.10.3.tar.gz
+│   └── nginx.service
+├── SPECS
+│   └── nginx.spec
+└── SRPMS
+    └── nginx-1.10-3.src.rpm
+安装编译好nginx的rpm包
+nginx rpmbuild]# yum -y install RPMS/x86_64/nginx-1.10-3.x86_64.rpm
+nginx nginx]# systemctl status nginx
+nginx nginx]# systemctl start nginx
+
++++++++++++++++++++++++++++++++++++++++
+apache
+
+pache ~]# yum -y install httpd
+apache ~]# apachectl -t  检测语法是否错误
+Syntax OK
+apache ~]# vim /etc/httpd/conf/httpd.conf
+#ServerName www.example.com:80
+ServerName localhost 
+:wq
+apache ~]# apachectl -t
+Syntax OK
+apache ~]# systemctl start httpd
++++++++++++++++++++++++++++++++++++
+]# rm -rf rpmbuild/
+]# rpm -ivh 01/php-7.2-2.src.rpm 
+nginx rpmbuild]# tree
+├── SOURCES
+│   ├── php-7.2.2.tar.bz2
+│   ├── php-fpm.conf
+│   └── www.conf
+└── SPECS
+    └── php.spec
+nginx rpmbuild]# vim SPECS/php.spec
+Name:		php
+Version:	7.2
+Release:	2
+Summary:	PHP is a widely-used general-purpose scripting language that is especially suited for Web development and can be embedded into HTML.
+
+Group:		luck
+License:	GPLv2
+URL:		http://www.php.net/
+Source0:	%{name}-%{version}.%{release}.tar.bz2
+Source1:	php-fpm.conf
+Source2:	www.conf
+BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+
+%define         debug_package %{nil}
+%define 	__check_files %{nil}
+BuildRequires:	glibc gcc perl pkgconfig curl-devel gd-devel libXpm-devel zlib-devel readline-devel libxml2-devel
+Requires:	nss-tools nss-util bash pcre openssl libXpm gd
+Packager:	luck
+%description
+	PHP is a widely-used general-purpose scripting language.
+
+%prep
+%setup -q -c -n %{name}-%{version}.%{release}
+
+%build
+cd %{name}-%{version}.%{release}
+./configure --prefix=/usr/local/php --with-config-file-path=/etc --enable-fd-setsize=65535 --enable-fpm --disable-ipv6 --without-sqlite3 --without-pdo-sqlite --enable-sockets --enable-sysvsem --enable-sysvshm --enable-sysvmsg --enable-shmop --enable-mbstring --enable-zip --enable-bcmath --enable-ftp --enable-soap --with-mhash --with-pcre-regex --with-pcre-dir --with-readline --with-zlib --with-curl --with-openssl --with-iconv --with-gd --with-png-dir --with-jpeg-dir --with-freetype-dir --with-xpm-dir --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd
+make
+
+%install
+cd %{name}-%{version}.%{release}
+make INSTALL_ROOT=${RPM_BUILD_ROOT} install
+mkdir -p %{buildroot}/{etc,var/log/weblog,usr/lib/systemd/system}
+cp php.ini-production %{buildroot}/etc/php.ini
+cp sapi/fpm/php-fpm.service %{buildroot}/usr/lib/systemd/system/
+cp %{S:1} %{buildroot}/usr/local/php/etc/
+cp %{S:2} %{buildroot}/usr/local/php/etc/php-fpm.d/
+
+%clean
+rm -rf %{buildroot} %{_builddir}
+
+%files
+%defattr(-,root,root,-)
+/usr/local/php
+/etc/php.ini
+/usr/lib/systemd/system/php-fpm.service
+
+%pre
+if  ! $(id web &>/dev/null);then
+    groupadd -g 1000 web
+    useradd -u 1000 -g 1000 web -s /sbin/nologin
+fi
+
+%post
+for _F in php php-config phpize;do
+    ln -s /usr/local/php/bin/$_F /usr/local/bin
+done
+
+%preun
+systemctl stop php-fpm>/dev/null
+rm -f /usr/local/bin/{php,php-config,phpize} /var/log/weblog/php*log
+
+%postun
+
+%changelog
+++++++++++++++++++++++++++++++++
+nginx的php配置
+
+nginx rpmbuild]# yum -y install glibc gcc perl pkgconfig curl-devel gd-devel libXpm-devel zlib-devel readline-devel libxml2-devel
+
+nginx rpmbuild]# rpmbuild -bb SPECS/php.spec  (-ba是编译所有)
+这编译过程超过5分钟,请耐心等待
+nginx rpmbuild]# tree 
+├── BUILDROOT
+├── RPMS
+│   └── x86_64
+│       └── php-7.2-2.x86_64.rpm (多出这个编译好的二进制可执行的rpm包)
+├── SOURCES
+│   ├── php-7.2.2.tar.bz2
+│   ├── php-fpm.conf
+│   └── www.conf
+├── SPECS
+│   └── php.spec
+└── SRPMS
+装php的rpm包
+nginx rpmbuild]# rpm -ivh RPMS/x86_64/php-7.2-2.x86_64.rpm 
+nginx rpmbuild]# php -v 查看版本号
+PHP 7.2.2
+
+(php和nginx还不能结合使用,要调置fastcgi)
+nginx ~]# ls /usr/local/nginx/html/
+50x.html    index.html  
+[root@nginx ~]# vim /usr/local/nginx/html/info.php
+<?php
+ phpinfo();
+?>      这个文件可以看下php的信息
+:wq 保存退出
+nginx ~]# php /usr/local/nginx/html/info.php 执行成功,显示php内容
+nginx ~]# curl 192.168.1.81/info.php
+<?php
+ phpinfo();
+?>   
+结果显示没有动态解析,显示的是源码
+nginx ~]# find / -name "www.conf"
+/root/rpmbuild/SOURCES/www.conf
+/usr/local/php/etc/php-fpm.d/www.conf
+nginx ~]# vim /usr/local/php/etc/php-fpm.d/www.conf
+listen = /var/run/php-fpm.sock  sock是网络套接字  文件类型为s的是sock文件
+(网络访问:1是本机通过IP地址和端口号去访问网络服务,2是本机通过sock,不需要通IP地址和端口号,性能更好,但只限制在本机,跨本机的要用IP地址访问)
+nginx ~]# ls -al /var/run/php-fpm.sock
+ls: 无法访问/var/run/php-fpm.sock: 没有那个文件或目录
+nginx ~]# systemctl start php-fpm
+nginx ~]# ls -al /var/run/php-fpm.sock
+srw-rw---- 1 web web 0 9月   5 10:59 /var/run/php-fpm.sock
+(起php-fpm服务后,就有sock文件了,php服务配置好了)
+nginx ~]# vim /usr/local/nginx/conf/nginx.conf
+location ~ \.php$ { 
+           root           html;
+           fastcgi_pass   127.0.0.1:9000;
+           fastcgi_index  index.php;
+       #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+           include        fastcgi.conf;
+       }
+:wq 保存退出
+在/usr/local/php/etc/php-fpm.d/www.conf配置文件里
+listen = /var/run/php-fpm.sock发为listen = 127.0.0.1:9000
+nginx ~]# systemctl restart php-fpm
+nginx ~]# ss -antupl
+tcp    LISTEN     0      128    127.0.0.1:9000                *:*                   users:(("php-fpm",pid=825,fd=6))
+nginx ~]# systemctl restart nginx
+nginx ~]# curl 192.168.1.81/info.php
+显示的是php信息了,动态解析成功,不再是显示源码了
+
+别一方法sork网络套接字
+nginx ~]# vim /usr/local/nginx/conf/myconf.patch 
+/sock 搜索找到 #fastcgi_pass   unix:/var/run/php-fpm.sock;
+
+nginx ~]# vim /usr/local/nginx/conf/nginx.conf
+location ~ \.php$ { 
+           root           html;
+       #    fastcgi_pass   127.0.0.1:9000;
+           fastcgi_pass   unix:/var/run/php-fpm.sock;
+           fastcgi_index  index.php;
+       #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+           include        fastcgi.conf;
+       }
+再重启nginx服务访问curl 192.168.1.81/info.php也可行
+
+++++++++++++++++++++++++++++++++++++++
+apache的php配置
+
+apache ~]# vim /var/www/html/info.php
+<?php
+  phpinfo();
+?>
+:wq
+apache ~]# curl http://192.168.1.82/info.php
+<?php
+  phpinfo();
+?>  这里显示的是php动态网页解析不成功
+apache ~]# yum list | grep php 列出很多个含有php字符的rpm包
+apache ~]# yum -y install php 先装php包
+(生成两个目录/etc/httpd/conf.modules.d/10-php.conf和/etc/httpd/conf.d/php.conf)
+
+apache ~]# cat /etc/httpd/conf.modules.d/10-php.conf 
+#
+# PHP is an HTML-embedded scripting language which attempts to make it
+# easy for developers to write dynamically generated webpages.
+#
+<IfModule prefork.c>
+  LoadModule php5_module modules/libphp5.so  这里定义一个类似fastcgi可以解析php的模块modules/libphp5.so
+</IfModule>
+
+apache ~]# cat /etc/httpd/conf.d/php.conf
+#<FilesMatch \.phps$>  匹配后缀为.php的文件
+#    SetHandler application/x-httpd-php-source
+#</FilesMatch>
+AddType text/html .php 添加类型
+DirectoryIndex index.php php启动的默认文件
+php_value session.save_handler "files"
+php_value session.save_path    "/var/lib/php/session"
+重启下apaceh
+apache ~]# apachectl stop
+apache ~]# apachectl start
+apache ~]# curl http://192.168.1.82/info.php
+(显示php动态网页解析成功,apache的php配置完成,就装了个php包,生成/etc/httpd/conf.modules.d/10-php.conf和/etc/httpd/conf.d/php.conf起到PHP动态解析效果,未修改配置文件,但要知道原理)
+++++++++++++++++++++++++++++++++++
+总体思路
+   实验二(搭配lnmp和lamp环境)：
+            以新安装的系统为模板，安装 Linux + Nginx + mysql + php (fastcgi)
+	    Nginx 安装编译参数（rpm 详见 spec 文件）
+	    添加 web 用户和组
+	    groupadd -g 1000 web
+	    useradd -u 1000 -g 1000 web -s /sbin/nologin
+	    添加编译依赖库
+	    yum install openssl-devel pcre-devel readhline-devel zlib-devel
+
+	    ./configure --prefix=/usr/local/nginx \  # 安装路径
+	    --with-http_ssl_module \                 # 开启 ssl 模块 支持https
+	    --with-http_v2_module \                  # 支持 http_v2 协议
+	    --with-http_realip_module \              # 获取客户端真实 ip
+	    --with-http_stub_status_module \         # 查看服务器工作状态
+	    --without-mail_pop3_module \             # 禁用 pop3 模块
+	    --without-mail_imap_module \             # 禁用 imap 模块
+	    --without-mail_smtp_module \             # 禁用 smtp 模块
+	    --with-pcre                              # 开启 pcre 正则表达式支持
+
+            配置文件 nginx.conf
+	    user  web web;
+	    worker_processes  auto;
+	    worker_rlimit_nofile 16384;
+
+	    events {
+	        use epoll;
+		worker_connections 8192;
+	    }
+	    pid /var/run/nginx.pid;
+
+            php   安装编译参数（rpm 详见 spec 文件）
+	    ./configure --prefix=/usr/local/php --with-config-file-path=/etc \ # 安装及配置文件路径
+	    --with-fpm-user=web --with-fpm-group=web \                         # 用户和组设置
+	    --enable-fd-setsize=65535 --disable-ipv6 \                         # 禁用 ipv6，和设置 openfile 
+	    --without-sqlite3 --without-pdo-sqlite \                           # 禁用 sqlite
+	    --enable-fpm \                                                     # 打开 fpm 模式支持
+	    --enable-sockets --enable-sysvsem --enable-sysvshm --enable-sysvmsg --enable-shmop --enable-mbstring --enable-zip --enable-bcmath --enable-ftp --enable-soap --with-mhash --with-pcre-regex --with-pcre-dir --with-readline --with-zlib --with-curl --with-openssl --with-iconv --with-gd --with-png-dir --with-jpeg-dir --with-freetype-dir --with-xpm-dir \               # php功能特性
+	    --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd    # 打开 mysql 支持
+
+	    php-fpm 配置文件
+	    [global]
+	    pid = /var/run/php-fpm.pid
+	    error_log = /var/log/weblog/php-fpm.log
+	    log_level = warning
+	    emergency_restart_threshold = 10
+	    emergency_restart_interval = 1d
+	    process.max = 2048
+	    daemonize = yes
+	    rlimit_files = 65535
+
+            user = web
+	    group = web
+	    listen = /var/run/php-fpm.sock
+	    listen.backlog = 1024
+	    listen.owner = web
+	    listen.group = web
+	    listen.mode = 0660
+	    pm = ondemand
+	    pm.max_children = 2048
+	    pm.process_idle_timeout = 60s;
+	    pm.max_requests = 2048
+	    request_terminate_timeout = 180
+
+	    nginx fastcgi 配置
+	    location ~ ^/(.+\.php)$ {
+                fastcgi_pass   unix:/var/run/php-fpm.sock;
+                fastcgi_index  index.php;
+                include        fastcgi.conf;
+            }
+
+            验证配置 info.php
+	    <?PHP
+	      phpinfo();
+	    ?>
+
+LNMP
+ Linux + Nginx + Mysql + PHP
+ Nginx (编译安装)
+   rpmbuild -bb nginx.spec
+ PHP (编译安装)
+   rpmbuild -bb php.spec
+ 注意: Nginx 和 php 结合要使用 fastcgi
+   修改  /usr/local/php/etc/php-fpm.d/www.conf 
+   修改  /usr/local/nginx/conf/nginx.conf
+LAMP
+ Linux + Apache + Mysql + PHP
+ Apache 
+   yum install httpd
+ PHP
+   yum install php
+   自动都配置好了
+   配置文件在 /etc/httpd/conf.d/php.conf
+   配置文件在 /etc/httpd/conf.modules.d/10-php.conf
+ Mysql
+   ftp://172.40.50.117/2018/soft/mysql/mysql-5.7.17.tar
+   yum 安装 mysql-5.7.17
+(再有详细不懂的模块或疑问,可参看金步国作品集网站http://www.jinbuguo.com/的文档)

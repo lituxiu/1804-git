@@ -1,0 +1,60 @@
+linux是一种内核(kernel)
+kernel+一堆应用=os(系统)
+
+操作人
+app
+os
+kernel
+CPU
+
+http://blog.51cto.com/lidongni/2095591
+政府机构用rhel  企业用centos
+
+Linux最少需要几个分区? 1个分区就可(企业中不会只为一个分区)
+建议分4个份区
+C:100G 系统
+D:200G 软件
+E:剩余的1/2,存常用文件
+F:剩余空间,不常用文件
+
+/boot:必分
+/home:不一定分
+/var:一般会分.日志一天10G也正常
+(容易撑満的文件夹分成一个区,这样就算盘満了对系统性能影响不大)
+
+5块硬盘搞成raid5成了一块/dev/sda1
+
+[root@nginx ~]#PS1='[\u@\h\t ]\$'
+
+查看文件的第5行 head -5 /etc/passwd |tail -1
+
+ ]#grep  'root' /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+operator:x:11:0:operator:/root:/sbin/nologin
+]#grep -o 'root' /etc/passwd
+root
+root
+root
+root
+(-o是只匹配到的内容)
+
+显示匹配内容的行号
+]#grep -n 'root' /etc/passwd
+1:root:x:0:0:root:/root:/bin/bash
+10:operator:x:11:0:operator:/root:/sbin/nologin
+
+显示找到内容的前2行和后3行
+grep -B2 -A3 -n 'adm' /etc/passwd
+
+
+centos6 内核是2.6
+
+]# echo "helloword"|tr 'a-z' 'A-Z'
+HELLOWORD
+
+
+
+
+
+
+

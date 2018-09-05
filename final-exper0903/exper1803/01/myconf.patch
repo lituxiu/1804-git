@@ -1,0 +1,211 @@
+diff -Nur old/conf/nginx.conf new/conf/nginx.conf
+--- old/conf/nginx.conf	2014-01-07 17:30:56.708809420 +0800
++++ new/conf/nginx.conf	2014-01-07 17:28:11.143788143 +0800
+@@ -1,117 +1,122 @@
+-
+-#user  nobody;
+-worker_processes  1;
+-
+-#error_log  logs/error.log;
+-#error_log  logs/error.log  notice;
+-#error_log  logs/error.log  info;
+-
+-#pid        logs/nginx.pid;
+-
++user apache apache;
++worker_processes auto;
++worker_cpu_affinity auto;
++worker_rlimit_nofile 16384;
++error_log /var/log/weblog/error_log warn;
++pid /var/run/nginx.pid;
+ 
+ events {
+-    worker_connections  1024;
++    use epoll;
++    worker_connections 8192;
+ }
+ 
+-
+ http {
+     include       mime.types;
+     default_type  application/octet-stream;
++    charset	  utf8;
++    add_header Cluster_id $HOSTNAME;
+ 
+-    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+-    #                  '$status $body_bytes_sent "$http_referer" '
+-    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+-
+-    #access_log  logs/access.log  main;
++    log_format main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" ';
++    access_log off;
+ 
+-    sendfile        on;
+-    #tcp_nopush     on;
+-
+-    #keepalive_timeout  0;
+-    keepalive_timeout  65;
+-
+-    #gzip  on;
++    sendfile    on;
++    tcp_nopush  on;
++    tcp_nodelay on;
++    server_tokens off;
++
++    keepalive_timeout  100;
++
++    server_names_hash_bucket_size 128;
++    client_header_buffer_size 4k;
++    large_client_header_buffers 16 4k;
++    client_max_body_size 8m;
++    #open_file_cache max=32768 inactive=30s;
++    #open_file_cache_valid 30s;
++    #open_file_cache_min_uses 1;
++
++    #fastcgi_temp_path /var/cache/nginx/fcgi;
++    #fastcgi_cache_path /var/cache/nginx/cache levels=1:2 keys_zone=PHP_CACHE:128m inactive=300s max_size=1g;
++    fastcgi_connect_timeout 180;
++    fastcgi_send_timeout 60;
++    fastcgi_read_timeout 120;
++    fastcgi_buffer_size 512k;
++    fastcgi_buffers 16 128k;
++    fastcgi_busy_buffers_size 1024k;
++    #fastcgi_temp_file_write_size 512k;
++    #fastcgi_cache PHP_CACHE;
++    ##fastcgi_cache_methods POST;
++    #fastcgi_cache_valid 200 302 30m;
++    #fastcgi_cache_valid 301 1d;
++    #fastcgi_cache_valid any 5m;
++    #fastcgi_cache_min_uses 1;
++    #fastcgi_cache_use_stale error timeout invalid_header http_500;
++    #fastcgi_cache_key http://$host$server_name$uri$is_args$args;
++
++    gzip  on;
++    gzip_min_length 1k;
++    gzip_buffers 8 8k;
++    gzip_http_version 1.1;
++    gzip_comp_level 2;
++    gzip_types text/plain application/x-javascript text/css application/xml;
++    gzip_vary on;
+ 
+     server {
+-        listen       80;
++        listen 80 backlog=65535;
+         server_name  localhost;
++        root /var/webroot;
++        charset utf8;
+ 
+-        #charset koi8-r;
+-
+-        #access_log  logs/host.access.log  main;
++        #access_log  logs/host.access_log  main;
++        access_log off;
+ 
+         location / {
+-            root   html;
+-            index  index.html index.htm;
++            index index.shtml index.html;
+         }
+ 
+-        #error_page  404              /404.html;
+-
+         # redirect server error pages to the static page /50x.html
+         #
+-        error_page   500 502 503 504  /50x.html;
+-        location = /50x.html {
+-            root   html;
++        error_page 405 =200 @405;
++        location @405 {
++            if ($request_method = OPTIONS ) {
++                add_header Allow POST,OPTIONS,GET,HEAD;
++                return 200;
++            }
++        }
++        # error_page 404 /404.html;
++        error_page 500 502 503 504 /50x.html;
++        location ~ /(404|50x).html$ {
++            root html;
+         }
+ 
+-        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+-        #
+-        #location ~ \.php$ {
+-        #    proxy_pass   http://127.0.0.1;
+-        #}
++        location /web-server-status {
++            stub_status on;
++        }
+ 
+         # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+         #
+-        #location ~ \.php$ {
+-        #    root           html;
+-        #    fastcgi_pass   127.0.0.1:9000;
++        #location ~ ^/(.+\.php|php_status)$ {
++        #    fastcgi_pass   127.0.0.1:8080;
++        #    #fastcgi_pass   unix:/var/run/php-fpm.sock;
+         #    fastcgi_index  index.php;
+-        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+-        #    include        fastcgi_params;
++        #    include        fastcgi.conf;
++        #}
++
++        # /img/w_100/h_100/path/t.jpg == /path/t.jpg [w] wight [h] height
++        #location ~* ^/img/w_(\d+)/h_(\d+)/(.*)$ {
++        #    rewrite /img/w_(\d+)/h_(\d+)/(.*)$ /image/$3 break;
++        #    image_filter_buffer 32M;
++        #    image_filter resize $1 $2;
+         #}
+ 
++        location ~ .+\.(gif|jpg|jpeg|png|bmp|swf|css|js)$ {
++            expires 30d;
++        }
++
+         # deny access to .htaccess files, if Apache's document root
+         # concurs with nginx's one
+         #
+-        #location ~ /\.ht {
+-        #    deny  all;
+-        #}
++        location ~ /\.ht {
++            deny  all;
++        }
+     }
+-
+-
+-    # another virtual host using mix of IP-, name-, and port-based configuration
+-    #
+-    #server {
+-    #    listen       8000;
+-    #    listen       somename:8080;
+-    #    server_name  somename  alias  another.alias;
+-
+-    #    location / {
+-    #        root   html;
+-    #        index  index.html index.htm;
+-    #    }
+-    #}
+-
+-
+-    # HTTPS server
+-    #
+-    #server {
+-    #    listen       443 ssl;
+-    #    server_name  localhost;
+-
+-    #    ssl_certificate      cert.pem;
+-    #    ssl_certificate_key  cert.key;
+-
+-    #    ssl_session_cache    shared:SSL:1m;
+-    #    ssl_session_timeout  5m;
+-
+-    #    ssl_ciphers  HIGH:!aNULL:!MD5;
+-    #    ssl_prefer_server_ciphers  on;
+-
+-    #    location / {
+-    #        root   html;
+-    #        index  index.html index.htm;
+-    #    }
+-    #}
+-
+ }

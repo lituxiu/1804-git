@@ -1,0 +1,202 @@
+DBA1 day01-2
+
+set global validate_password_policy=0;
+set global validate_password_length=6;(设密码长度为6)
+alter user root@'localhost' identified by '123456';
+
+create table daxiuge.高岭足球队(姓名 char(10),年龄 int(1))default charset=utf8；
+desc daxiuge.高岭足球队;
+mysql> create table 高岭队 select * from db3.高岭足球队;
+mysql> insert into 高岭队 values("李土秀",26),("李强",22);
+
+alter修改表结构
+(alter table 库.表  action)
+alter table db2.t8 add qq char(11);
+alter table t10 add primary key(stu_id);
+alter table db2.t8 modify qq char(11) qq char(15);
+alter table db2.t8 drop qq,drop email;
+alter table db2.t8 change stu_num stu_id varchar(10);
+alter table db2.t8 rename t9;
+
+desc 表名；  key---->MUL
+show index from 表\G；查看表的index仔细信息
+一、创建表时指定index字段
+create table t9(
+name char(15) not null default "",
+class char(7) default "nsd1804",
+age tinyint(2) not null default 19,
+sex enum("boy","girl") not null default "boy",
+index(name),index(class)
+);
+二、把已有表的字段设置为index字段
+格式：create index 索引名 on  表名(字段名);
+create index aaa on stuinfo(name);
+三、删除index
+show index from t9\G;
+drop index 索引名 from t9;
+desc t9;
+
+主键(primary key)
+一、建表时创建主键
+建表时创建主键 字段（有两种方法）
+create table t10(
+stu_id char(9) primary key,
+name char(10));
+
+create table t11(
+stu_id char(9) ,
+name char(10),
+primary key(stu_id));
+
+二、在已有表里创建主键字段
+alter table t10 add primary key(stu_id);
+
+三、创建复合主键： 表中的多个字段一起做主键 ，赋值时，主键字段的值不同时重复。
+create table t12(
+name char(15),
+class char(7),
+pay enum("yes","no"),
+primary key(name,class)
+);
+四、在已有表里创建复合主键
+delete from t12;
+alter table  t12  add  primary  key(name,class);
+
+五、删除主键（复合主键都一样）
+alter table t10 drop primary key;
+
+++++++++++++++++++++++++++++++++++++++++
+DBA1 day03
+auto_increment(主键通常与increment连用，让字段的值自动增长（自加1计算）)
+create database db3;
+use db3
+create table t1(
+id int(2) primary key auto_increment,
+name char(15) not null,
+age tinyint(2) unsigned default 19,
+pay float(7,2) default 26800
+);
+insert into t1(name,age,pay) values("tom",21,18000);
+insert into t1 (name,age,pay) values("lucy",23,18800);
+select * from t1;
+
+外键：主当前表字段的值，在另一个表字段值范围内选择
+首先创建被参考的表 员工信息表
+create table yginfo(   
+yg_id int(2) primary key auto_increment,
+name char(15)
+)engine=innodb;
+insert into yginfo(name)values("bob");
+insert into yginfo(name)values("bob");
+insert into yginfo(name)values("lucy")
+创建外键
+create table gztab(   
+gz_id int(2), 
+pay float(7,2),
+foreign key(gz_id ) references yginfo(yg_id)
+on delete cascade on update cascade 
+)engine=innodb;
+insert into  gztab  values(1,50000);
+insert into  gztab  values(2,25000);
+insert into  gztab  values(3,35000);
+insert into  gztab  values(4,60000); （错误）因为yginfor(id)值只有1到3，4不在gztab（id）的参照选择范围内。
+update   yginfo  set  yg_id=7  where  yg_id=2;
+alter table  gztab add primary key(gz_id);  字段值不允许重复和赋null值
+删除外键(后尾要加外键值)
+show create table gztab;
+alter table gztab drop foreign key gztab_ibfk_1;
+show create table gztab;  
+
+数据库数据的导入和导出
+件存储路径默认是/var/lib/mysql-files
+mysql> show variables like "secure_file_priv";
+自定义数据导出、导入文件存储的目录？
+[root@host50 ~]# mkdir /mydata
+[root@host50 ~]# chown mysql /mydata/
+]#vim /etc/my.cnf
+[mysqld]
+secure_file_priv="/mydata"
+:wq
+]#systemctl restart mysqld
+mysql> show variables like "secure_file_priv";
+（注意如果文件目录是在/root下要给777权限才行，要不mysqld服务重起不来）
+mysql> system cp /etc/passwd /mydata/
+先创表结构create table db3.user(
+name char(50),
+password char(1),
+uid int(2),
+gid int(2),
+comment varchar(150),
+homedir char(150),
+shell char(50),
+index(name));
+数据导入语句
+MySQL> load data infile "/mydata/passwd" into table db3.user   fields terminated by ":" lines terminated by "\n";
+数据导出：把数据库服务器的表里的记录存储到系统文件里。
+mysql> sql查询命令 into outfile "目录名/文件名"；
+select * from t1 into outfile "/mydata/t1.txt"；
+select * from t1 into outfile "/mydata/t2.txt" fields terminated by "#";
+mysql> select * from t1 into outfile "/mydata/t3.txt" fields  terminated by "#" lines terminated by "!!!";
+
+管理表记录
+添加新记录 insert into 表名（字段名） values(记录)；
+查询记录  select 条件 from 表名；
+更新记录字段的值  update 表名 set 字段名＝值；
+删除记录  delete from 表名 （条件）或delete from 表名（里面内容全删）;
+
+select * from user where id <= 10
+select name,uid,gid from user where uid=gid;
+update user set gid=6 where id=7;
+select name from user where name="apache";
+select name,shell from user where shell !="/bin/bash";
+update user set gid=2000 where shell="/sbin/nologin";
+select gid,shell from user where shell ="/sbin/nologin";
+select id,name from user where name is null;
+select id,name from user where name="null";
+select id,name from user where name="";
+select name ,shell from user where shell is not null;
+逻辑比较 and(与) or（或）! not（非）
+select * from user where name="root" and uid=1 and shell="/bin/bash";
+select name,uid from user where name="root" or uid=1;
+( ) 提高执行顺序,and优先级大于or
+select name,uid from user   
+where name="root" or name="bin" and uid=1;
+select name,uid from user   
+where (name="root" or name="bin") and uid=1;
+范围内匹配
+select name from user 
+where name in("root","sync","lucy","bob"); 
+select name,uid from user where uid in (1,7,27,1000); 
+select name,shell from user where shell not in("/bin/bash","/sbin/nologin");
+select * from user where uid between 10 and 20;
+select * from user where uid >=10 and uid<=20;
+distinct (只适合select查询使用)
+select shell from user;
+select distinct shell from user;
+select shell from user where uid<=500;
+select distinct shell from user where uid<=500;
+
++++++++++++++++++++++++++++++++++++++++++++++++++
+DBA1 day04
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

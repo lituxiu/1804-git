@@ -1,0 +1,129 @@
+1、 /bin/bash  
+    useradd -s /sbin/nologin user
+    usermod -s /sbin/nologin user
+
+2、 $PATH $USER $UID $RANDOM $HISTSIZE $HOSTNAME
+
+3、 &>
+    > /dev/null
+
+4、
+#!/bin/bash
+read -p "请输入第一个数值：" num1
+read -p "请输入第一个数值：" num2
+read -p "请输入第一个数值：" num3
+A=0
+if [ $num1 -gt $num2  ];then
+   A=$num2
+   num2=$num1
+   num1=$A
+fi
+if [ $num1 -gt $num3  ];then
+   A=$num3
+   num3=$num1
+   num1=$A
+fi
+if [ $num2 -gt $num3  ];then
+   A=$num3
+   num3=$num2
+   num2=$A
+fi
+echo "$num1 $num2 $num3"
+
+
+6.#!/bin/bash
+A=$[$RANDOM%3]
+game=(石头 剪刀 布)
+read -p "请输入你要猜的挙：（1.石头 2.剪刀 3.布）"  a
+case $a in
+1)
+    if [ $A -eq 0  ];then
+       echo " 1.出石头 平"
+    elif [ $A -eq 1  ];then
+       echo "1.出石头 赢"
+    else
+       echo "1.出石头 输"
+    fi ;;
+2)
+    if [ $A -eq 0  ];then
+       echo "2.出剪刀 输"
+    elif [ $A -eq 1  ];then
+       echo "2.出剪刀 平"
+    else
+       echo "2.出剪刀 赢"
+    fi ;;
+3)
+    if [ $A -eq 0  ];then
+       echo "3.出布 赢"
+    elif [ $A -eq 1  ];then
+       echo "3.出布 输"
+    else
+       echo "3.出布 平"
+    fi ;;
+esac
+echo "计算机结果是${game[$A]}"
+
+7.
+#!/bin/bash
+for i in {1..254}
+   do
+   ping -c2 -i0.3 -w1 192.168.4.$i &>/dev/null
+   if [ $? -eq 0 ] ;then
+      echo "hosts 192.168.4.$i up"
+   else
+      echo "hosts 192.168.4.$i down"
+    fi
+done
+
+8.
+#!/bin/bash
+for  x in {1..9}
+  do
+    for y in {1..9}
+     do
+      if [ $y -le $x  ];then
+      echo -n "$x*$y=$[$x*$y] "
+     fi
+    done
+  echo ""
+done
+
+9.#!/bin/bash
+A=`awk -F: /vendor_id/'{print $2}' /proc/cpuinfo`
+[ $A == GenuineIntel  ] && [ $? == 0  ]&& echo "主机CPU生产商为Intel" || echo ">主机CPU生产商为AMD"
+
+10.ifconfig eth0 | awk  '/TX p/{print $5}' 
+627817
+
+
+11
+#!/bin/bash 
+for  i  in  `cat  user.txt` 
+do 
+         useradd  $i 
+         echo "123456" | passwd --stdin $i 
+done 
+ 
+
+12
+#!/bin/bash
+for i in $1
+do
+ echo  ${i%.*}$2
+done
+          
+13
+#!/bin/bash
+expect << EOF
+spawn ssh root@172.25.0.10
+expect "password" {send "redhat\r"}
+expect "#" {send "yum repolost\r"}
+expect "#" {send "yum -y install httpd\r"}
+expect "#" {send "exit\r"}
+expect "#" {send "echo "安装httpd完毕"\r"}
+EOF
+echo ""
+
+
+
+

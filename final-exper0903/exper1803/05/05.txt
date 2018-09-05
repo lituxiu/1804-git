@@ -1,0 +1,297 @@
+第五天扩展多点集群：
+     公司网站在北京亦庄机房：
+     架构就是 LNMP + HAPROXY + Keepalived + （mysql master，slave）
+     现在需求是保留北京机房，在广州在建设一个同样的机房
+     希望可以起到双工互备份高可用的效果，如何设计架构？
+
+     第一种模式：
+         北京为主节点
+	 广州自建一个cdn节点，所有数据回源（与购买cdn服务相同）
+	 采用dns分离解析让用户就近访问
+	 特点：北京节点损坏，整个网站不可用
+
+     第二种模式：
+         北京为主节点
+	 广州也放置同样的 web 集群（数据更新的时候需要同步操作）
+	 数据库（是否需要？）
+	 外网采用 dns 分离解析让用户就近访问
+	 特点：北京机房故障时候，广州机房可提供部分功能
+	       内网通讯采用采用专线租用或 vpn 等技术手段
+	       柔性可用，梯度服务
+
+     第三中模式：
+         等待你的解决方案
+
+         
+	 数据库拆分解决方案
+	 特点：需要可以按照地域拆分，本地都有自己的完整集群架构体系
+	       某节点故障之后其他地区不受影响，但某些地区的数据只读，不能更新
+	       本地数据库对读写性能友好，需要发布系统上线数据
+
+         mysql双主方式
+        +--------------+                  +--------------+
+        |  北京机房    | <- vpn 或专线 -> |  广州机房    |
+        +--------------+                  +--------------+
+        |  主库 A      |  <--- 同步A库    |  A的从库 A1  |
+        |  B的从库 B1  |  同步B库 --->    |  主库 B      |
+        +--------------+                  +--------------+
+
+
+数据库相关配置：
+一.环境说明
+	node01：MySQL01      192.168.1.115/24
+	node02：MySQL02      192.168.2.115/24
+	node03：Route        eth0:192.168.1.100/24
+			     eth1:192.168.2.100/24
+
+1.基础环境配置
+1.1.node01(三台设备做一样的操作)
+[root@node01 ~]# firewall-cmd --get-default-zone 
+trusted
+[root@node01 ~]# getenforce 
+Disabled
+1.2开启路由转发功能
+[root@node03 ~]# echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+[root@node03 ~]# sysctl -p
+net.ipv4.ip_forward = 1
+1.3验证
+[root@node01 ~]# ping 192.168.1.100
+PING 192.168.1.100 (192.168.1.100) 56(84) bytes of data.
+64 bytes from 192.168.1.100: icmp_seq=1 ttl=64 time=0.360 ms
+[root@node01 ~]# ping 192.168.2.100
+PING 192.168.2.100 (192.168.2.100) 56(84) bytes of data.
+64 bytes from 192.168.2.100: icmp_seq=1 ttl=64 time=0.384 ms
+[root@node01 ~]# ping 192.168.2.115
+PING 192.168.2.115 (192.168.2.115) 56(84) bytes of data.
+64 bytes from 192.168.2.115: icmp_seq=1 ttl=63 time=1.31 ms
+[root@node02 ~]# ping 192.168.1.115
+PING 192.168.1.115 (192.168.1.115) 56(84) bytes of data.
+64 bytes from 192.168.1.115: icmp_seq=1 ttl=63 time=0.962 ms
+1.4.测试YUM
+[root@node01 ~]# yum repolsit
+[root@node01 ~]# yum repolist | grep "repolist"
+repolist: 4,620
+
+2.数据库
+2.1.安装（在node01及node02上操作）
+[root@node01 mysql]# tar -xf mysql-5.7.17-1.el7.x86_64.rpm-bundle.tar
+[root@node01 mysql]# ls
+mysql-community-client-5.7.17-1.el7.x86_64.rpm           mysql-community-libs-5.7.17-1.el7.x86_64.rpm
+mysql-community-common-5.7.17-1.el7.x86_64.rpm           mysql-community-libs-compat-5.7.17-1.el7.x86_64.rpm
+mysql-community-devel-5.7.17-1.el7.x86_64.rpm            mysql-community-minimal-debuginfo-5.7.17-1.el7.x86_64.rpm
+mysql-community-embedded-5.7.17-1.el7.x86_64.rpm         mysql-community-server-5.7.17-1.el7.x86_64.rpm
+mysql-community-embedded-compat-5.7.17-1.el7.x86_64.rpm  mysql-community-server-minimal-5.7.17-1.el7.x86_64.rpm
+mysql-community-embedded-devel-5.7.17-1.el7.x86_64.rpm   mysql-community-test-5.7.17-1.el7.x86_64.rpm
+[root@node01 mysql]# rm -rf mysql-community-server-minimal-5.7.17-1.el7.x86_64.rpm
+[root@node01 mysql]# yum -y localinstall mysql-community-*.rpm
+
+2.2.基本配置（在node01及node02上操作）
+[root@node01 mysql]# systemctl start mysqld
+[root@node01 mysql]# systemctl enable mysqld
+[root@node01 mysql]# ss -lnptu  | grep "3306"
+tcp    LISTEN     0      80       :::3306                 :::*                   users:(("mysqld",pid=5843,fd=22))
+[root@node01 mysql]# grep "password"  /var/log/mysqld.log
+2018-02-08T11:19:25.600869Z 1 [Note] A temporary password is generated for root@localhost: n#/lC7#i(Oq7
+[root@node01 mysql]# mysql -uroot -p
+Enter password: 
+mysql> set global validate_password_policy=0;
+Query OK, 0 rows affected (0.00 sec)
+mysql> set global validate_password_length=6;
+Query OK, 0 rows affected (0.00 sec)
+mysql> set password for "root"@"localhost"=password("123456");
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+mysql> exit
+[root@node01 mysql]# grep -v "^$" /etc/my.cnf  | grep -v "^#"
+[mysqld]
+validate_password_policy=0
+validate_password_length=6
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+symbolic-links=0
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+[root@node01 mysql]# systemctl restart mysqld
+[root@node01 mysql]# systemctl enable mysqld
+
+2.3.验证
+[root@node01 mysql]# mysql -uroot -p123456
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 4
+Server version: 5.7.17 MySQL Community Server (GPL)
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+mysql> 
+
+2.4 在node01及node02上建立两个库dbA,dbB.用来模拟分库.并创建数据表及插入记录（检验同步）
+[root@node01 mysql]# mysql -uroot -p123456
+mysql> create database dbA;
+Query OK, 1 row affected (0.00 sec)
+
+mysql> use dbA;
+Database changed
+mysql> create table uslist(
+    -> name char(16) NOT NULL,
+    -> password char(48) DEFAULT '',
+    -> PRIMARY KEY(name));
+Query OK, 0 rows affected (0.01 sec)
+mysql> create database dbB;
+Query OK, 1 row affected (0.00 sec)
+mysql> use dbB;
+Database changed
+mysql> create table addlist(
+    -> name char(16) NOT NULL,
+    -> address char(128) NOT NULL,
+    -> phone int(11) NOT NULL,
+    -> PRIMARY KEY(name));
+Query OK, 0 rows affected (0.02 sec)
+mysql> insert dbA.uslist values ('zhangsan','123456');
+Query OK, 1 row affected (0.04 sec)
+mysql> insert dbB.addlist values ('zhangsan','USA','1888888888');
+Query OK, 1 row affected (0.00 sec)
+
+2.5 用node01与node02实现双主结构并实现在nod01上只同步dbB库,在node02上只同步dbA库
+2.5.1.编辑node01及node02的配置文件/etc/my.cnf
+[root@node01 ~]# grep -v "^$" /etc/my.cnf  | grep -v "^#"
+[mysqld]
+validate_password_policy=0
+validate_password_length=6
+server_id=10 
+log_bin=node01
+replicate_wild_do_table= dbB.%
+binlog_format="mixed"
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+symbolic-links=0
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+
+[root@node02 ~]# grep -v "^$" /etc/my.cnf  | grep -v "^#"
+[mysqld]
+validate_password_policy=0
+validate_password_length=6
+server_id=10 
+log_bin=node02
+replicate_wild_do_table= dbA.%
+binlog_format="mixed"
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+symbolic-links=0
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+[root@node01 ~]# systemctl restart mysqld
+[root@node02 ~]# systemctl restart mysqld
+[root@node01 ~]# mysql -uroot -p123456
+mysql> show master status\G
+*************************** 1. row ***************************
+             File: node01.000003
+         Position: 154
+     Binlog_Do_DB: 
+ Binlog_Ignore_DB: 
+Executed_Gtid_Set: 
+1 row in set (0.00 sec)
+[root@node02 ~]# mysql -uroot -p123456
+mysql> show master status\G
+*************************** 1. row ***************************
+             File: node02.000004
+         Position: 154
+     Binlog_Do_DB: 
+ Binlog_Ignore_DB: 
+Executed_Gtid_Set: 
+1 row in set (0.00 sec)
+node01:
+mysql> change master to
+    -> master_host='192.168.2.115',
+    -> master_user='slaveuser',
+    -> master_password='123456',
+    -> master_log_file='node02.000004',
+    -> master_log_pos=154;
+Query OK, 0 rows affected, 2 warnings (0.01 sec)
+mysql> start slave;
+Query OK, 0 rows affected (0.01 sec)
+mysql> show slave status\G
+.....
+Slave_IO_Running: Yes
+Slave_SQL_Running: Yes
+.....
+node02:
+mysql> change master to
+    -> master_host='192.168.1.115',
+    -> master_user='slaveuser',
+    -> master_password='123456',
+    -> master_log_file='node01.000003',
+    -> master_log_pos=154;
+Query OK, 0 rows affected, 2 warnings (0.01 sec)
+mysql> start slave;
+Query OK, 0 rows affected (0.01 sec)
+mysql> show slave status\G
+.....
+Slave_IO_Running: Yes
+Slave_SQL_Running: Yes
+.....
+2.5.2 验证
+验证一：
+node01:
+mysql> insert dbA.uslist values('lisi',654321);
+Query OK, 1 row affected (0.04 sec)
+mysql> select * from dbA.uslist;
++----------+----------+
+| name     | password |
++----------+----------+
+| lisi     | 654321   |
+| zhangsan | 123456   |
++----------+----------+
+2 rows in set (0.00 sec)
+node02:
+mysql> select * from dbA.uslist;
++----------+----------+
+| name     | password |
++----------+----------+
+| lisi     | 654321   |
+| zhangsan | 123456   |
++----------+----------+
+2 rows in set (0.00 sec)
+验证二：
+node01:
+mysql> insert dbB.addlist values ('lisi','USA','1888888889');
+Query OK, 1 row affected (0.01 sec)
+mysql> select * from dbB.addlist;
++----------+---------+------------+
+| name     | address | phone      |
++----------+---------+------------+
+| lisi     | USA     | 1888888889 |
+| zhangsan | USA     | 1888888888 |
++----------+---------+------------+
+2 rows in set (0.00 sec)
+node02：
+mysql> select * from dbB.addlist;
++----------+---------+------------+
+| name     | address | phone      |
++----------+---------+------------+
+| zhangsan | USA     | 1888888888 |
++----------+---------+------------+
+1 row in set (0.00 sec)
+验证三：
+node02：
+mysql> insert dbB.addlist values ('wangwu','China','1888888889');
+Query OK, 1 row affected (0.01 sec)
+mysql> select * from dbB.addlist;
++----------+---------+------------+
+| name     | address | phone      |
++----------+---------+------------+
+| wangwu   | China   | 1888888889 |
+| zhangsan | USA     | 1888888888 |
++----------+---------+------------+
+2 rows in set (0.00 sec)
+mysql>  select * from dbB.addlist;
++----------+---------+------------+
+| name     | address | phone      |
++----------+---------+------------+
+| wangwu   | China   | 1888888889 |
+| zhangsan | USA     | 1888888888 |
++----------+---------+------------+
+2 rows in set (0.00 sec)
+对于binlog_format=statement或mixed，只在从库设置replicate_wild_do_table= hadoop.%或replicate_wild_ignore_table即可。此时可以避免跨库更新问题。
