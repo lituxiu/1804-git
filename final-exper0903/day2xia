@@ -1,0 +1,9 @@
+web压力测试
+
+一.apache bench的安装与使用
+apache自带的压力测度工具,简单易用,大并发的时候需要自己查询错误结果
+yum -y install httpd-tools
+ab [option] http://url
+支持get post自定义头等
+-c并发数量 -n请求总数 -H自定义请求头 -p post文件
+ab直接回车是查看ab的使用帮助文档

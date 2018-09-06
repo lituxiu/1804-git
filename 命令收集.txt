@@ -41,3 +41,6 @@ rpm -qa | grep httpd 查看有没有安装包含"httpd"字符的软件包名
 rpm -qa httpd 查看httpd安装的位置
 
 yum erase -y httpd  从系统中移除一个或多个软件包
+
+curl -O(大写)把输出写到该文件中，保留远程文件的文件名
+     -o(小写)把输出写到该文件中

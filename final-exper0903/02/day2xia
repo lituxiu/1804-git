@@ -1,0 +1,196 @@
+web压力测试
+
+新创一台虚拟机test83(192.168.1.83)
+一.apache bench的安装与使用
+apache自带的压力测度工具,简单易用,大并发的时候需要自己查询错误结果
+yum -y install httpd-tools
+ab [option] http://url/ (注意这里后面一定要加/结束命令才生效)
+支持get post自定义头等
+-c并发数量(client,多少个客户端)
+-n请求总数(访问总次数) 
+-H自定义请求头 
+-p post文件
+ab直接回车是查看ab的使用帮助文档
+ab -c100 -n1000 http://192.168.1.81/
+(-c100 -n1000代表100个客户端每个访问10次,总数1000次)
+
+
+安装httpd-tools
+test83 ~]# yum -y install httpd-tools
+
+安装web bench(是用c写的)
+test83 ~]# yum -y install gcc make ctags
+test83 ~]# tar -xf 02/WebBench.tar.gz
+test83 WebBench]# ls
+debian  LICENSE  Makefile  README.md  socket.c  webbench.1  webbench.c (是没有configure)
+test83 WebBench]# make
+webbench.c:80:31: 警告：未使用的参数‘signal’ [-Wunused-parameter]
+(有个signal警告,正常,当前目录下生成了webbench可执行文件 )
+test83 WebBench]# ./webbench 显示的是webbench的使用帮助文档(这步己是编译完成了)
+
+安装wrk
+test83 ~]# tar -xf 02/wrk.tar.xz
+test83 wrk]# ls
+CHANGES  INSTALL  Makefile  README.md  scripts
+deps     LICENSE  NOTICE    SCRIPTING  src
+test83 wrk]# make
+make: git：命令未找到
+test83 wrk]# yum -y install git
+test83 wrk]# make
+LINK wrk  (生成可执行wrk文件,直接使用即可)
+test83 wrk]# ./wrk  (wrk的使用帮助文档)
+
+++++++++++++++++++++
+测试apache(IP是1.82)的并发量
+
+test83 ~]# ab -c5000 -n50000 http://192.168.1.82/
+...
+socket: Too many open files (24)
+
+test83 ~]# ulimit -SHn 65535
+test83 ~]# ab -c5000 -n50000 http://192.168.1.82/
+..
+Total of 47647 requests completed 又报错了
+(执行不完,执行一半开始报错了)
+
+apache ~]# uptime
+ 16:16:26 up 36 min,  2 users,  load average: 5.93, 1.25, 0.44
+
+apache三大模块?
+切换apache三种工作模式?
+apache ~]# vim /etc/httpd/conf.modules.d/00-mpm.conf
+LoadModule mpm_prefork_module modules/mod_mpm_prefork.so
+#LoadModule mpm_worker_module modules/mod_mpm_worker.so
+#LoadModule mpm_event_module modules/mod_mpm_event.so
+(以上三个模式,正在使用的是没有注释的)
+
+同时查看金步国的中文手册修改http://www.jinbuguo.com/apache/menu22/mpm.html
+apache ~]# vim /etc/httpd/conf.modules.d/00-mpm.conf
+..
+LoadModule mpm_prefork_module modules/mod_mpm_prefork.so
+MaxClients 1024
+:wq
+apache ~]# apachectl -t
+AH00180: WARNING: MaxRequestWorkers of 1024 exceeds ServerLimit value of
+Syntax OK
+再修改
+apache ~]# vim /etc/httpd/conf.modules.d/00-mpm.conf
+..
+LoadModule mpm_prefork_module modules/mod_mpm_prefork.so
+MaxClients 1024
+ServerLimit 1024
+:wq
+apache ~]# apachectl -t
+Syntax OK  (无警告提示了,OK)
+apache ~]# apachectl restart
+
+再测试
+test83 ~]# ab -c5000 -n50000 http://192.168.1.82/
+Total of 47257 requests completed 还是报错
+
+apache ~]# vim /etc/httpd/conf/httpd.conf
+#EnableMMAP off
+EnableSendfile on
+KeepAliveTimeout 60 加多这一行
+:wq
+apache ~]# apachectl -t
+apache ~]# apachectl restart
+test83 ~]# ab -c5000 -n50000 http://192.168.1.82/
+Total of 47257 requests completed 还是报错
+最终得出apache在5000并发的连接下怎样优化还是挂了.....
+++++++++++++++
+测试ngixn(IP是1.81)的并发量
+
+test83 ~]# ab -c5000 -n50000 http://192.168.1.81/
+Time taken for tests:   4.321 seconds
+ 100%   4214 (longest request)
+nginx相比apache的性能,强了不少.在5000并发量50000的总连接数下,4秒多处理完
+test83 ~]# ab -c10000 -n50000 http://192.168.1.81/
+显示两种
+有时是Total of 49088 requests completed 报错了
+有时是
+Concurrency Level:      10000
+Time taken for tests:   4.590 seconds
+Complete requests:      50000
+Failed requests:        3200
+..
+100%   4363 (longest request
+看来达到目前最大并发量的临界点了
+接着测度总连接数50000的9000并发量和8000并必量
+test83 ~]# ab -c8000 -n50000 http://192.168.1.81/
+Concurrency Level:      8000
+Time taken for tests:   3.890 seconds
+Complete requests:      50000
+Failed requests:        0
+Write errors:           0
+100%   3035 (longest request
+最终得到的结果是nginx在总连接数50000下,能支持8000并必量
+以上的是支持静态页面的
++++++++++华丽的分隔线++++++++++++++
+
+生产环境中,是静态动态页面混用,还有连接后台的数据库查询
+ 
+        apache nginx
+静态页面  4000     8000
+动态页面            400
+数据库页面
+
+test83 ~]# ab -c1000 -n3000 http://192.168.1.81/testphp.php
+Concurrency Level:      1000
+Time taken for tests:   45.199 seconds
+Complete requests:      3000
+Failed requests:        461
+ 100%  39646 (longest request
+nginx测试动态网页挂了
+nginx ~]# uptime
+ 17:31:11 up  1:52,  2 users,  load average: 138.35, 34.98, 11.82
+
+test83 ~]# ab -c700 -n3000 http://192.168.1.81/testphp.php
+Concurrency Level:      700
+Time taken for tests:   67.677 seconds
+Complete requests:      3000
+Failed requests:        81 
+nginx还是挂了
+nginx ~]# uptime
+-bash: fork: Cannot allocate memory 无法分配内存
+nginx ~]# uptime
+ 17:37:40 up  1:58,  2 users,  load average: 246.63, 104.17, 43.97
+
+test83 ~]# ab -c500 -n3000 http://192.168.1.81/testphp.php
+Concurrency Level:      500
+Time taken for tests:   48.337 seconds
+Complete requests:      3000
+Failed requests:        0
+Write errors:           0
+不过有时还是有失败次数
+
+nginx ~]# uptime
+ 17:51:01 up  2:12,  1 user,  load average: 315.97, 127.51, 80.00
+
+
+nginx ~]# ps -eo "comm,%mem" |awk '{A[$1]+=$2}END{for(a in A)print A[a],a}'
+nginx ~]# ps -eo "comm,%mem" |awk '{A[$1]+=$2}END{for(a in A)if(A[a])print A[a]"\t"a}'
+0.1	rsyslogd
+67.2	php-fpm
+0.1	systemd
+0.1	bash
+9.9	mysqld
+0.6	nginx
+
+nginx ~]#  ps -eo "comm,%mem,%cpu" |awk '{A[$1]+=$2;B[$1]+=$3}END{for(a in A)if(A[a]||B[a])print A[a]"\t"B[a]"\t"a}'
+0.1	0	rsyslogd
+120	138.7	php-fpm
+0.1	0	systemd
+0.1	0.2	bash
+9.9	0	mysqld
+0.8	0.6	nginx
+test83 ~]# ab -c400 -n3000 http://192.168.1.81/testphp.php
+Concurrency Level:      400
+Time taken for tests:   47.446 seconds
+Complete requests:      3000
+Failed requests:        0
+Write errors:           0
+在总连接数3000次数下,nginx支持动太网页访问的并发数为400
+
+看到0904xia128分钟
+

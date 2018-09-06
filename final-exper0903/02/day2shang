@@ -1,0 +1,287 @@
+nginx和php的连接状态的配置与查看
+
+nginx ~]# vim /usr/local/nginx/conf/nginx.conf
+ location /status { 注意这里的/不能后跟空格,否则重启nginx服务会报错
+        stub_status on; 如果只写这一行,我所有的监测请求都会被记录到访问日志里
+        access_log off; 所有加多这一行不记录所有的监控请求
+        }
+       location ~ \.php$ { 在这一行的上行添加以上内容
+不过为了区分与apache的,在这里把location /status改为location /nginx-status
+
+安全版status设置(在这里不设置,需学懂)
+location /nginx-status {
+   allow 192.168.0.0/16;
+   deny all;   (这里的allow和deny是只允许192.168.0.0网段访问,其它主机全拒绝)
+   stub_status on;
+   access_log off;
+}
+设置完后检查语法是否有错
+nginx ~]# /usr/local/nginx/sbin/nginx -t
+nginx ~]# systemctl restart nginx
+nginx ~]# curl 192.168.1.81/nginx-status
+Active connections: 1 
+server accepts handled requests
+ 5 5 5 
+Reading: 0 Writing: 1 Waiting: 0
+
+nginx ~]# vim /usr/local/php/etc/php-fpm.d/www.conf 
+命令模式/status 去找;pm.status_path = /status这行
+把前面的;分号注释去掉,后保存退出
+nginx ~]# systemctl restart php-fpm
+nginx ~]# curl 192.168.1.81/status
+报错404 Not Found,区配不到
+
+耍小聪明,把pm.status_path = /status改为pm.status_path = /status.php
+因为location ~ \.php$这个区配条件,否则自己再加个location区配条件
+nginx ~]# systemctl restart php-fpm
+nginx ~]# curl 192.168.1.81/status.php  访问成功
+pool:                 www
+process manager:      ondemand
+start time:           05/Sep/2018:15:46:32 +0800
+start since:          5
+accepted conn:        1
+listen queue:         0
+max listen queue:     0
+listen queue len:     128
+idle processes:       0
+active processes:     1
+total processes:      1
+max active processes: 1
+max children reached: 0
+
+以上两种就是查看nginx和php状态的方法
+++++++++++++++++华丽的分隔线++++++++++++++++
+apache配置文件
+
+apache ~]# vim /etc/httpd/conf.modules.d/00-base.conf
+命令模式/info
+LoadModule info_module modules/mod_info.so
+(找到info_module modules/mod_info.so)
+
+新建一个info.conf文档启动模块
+apache ~]# vim /etc/httpd/conf.d/info.conf
+通过apache官网手册http://httpd.apache.org/docs/2.4/去配置
+找左侧的modules(模块),再选i开头字母找mod_info,看mod_info里的summary(摘要),如下
+<Location "/server-info">   名字
+    SetHandler server-info  这是启用的关键字
+</Location>
+
+设置好后结果cat /etc/httpd/conf.d/info.conf
+<Location "/httpd-info">
+    SetHandler server-info
+</Location>
+重启apache服务
+apache ~]# apachectl restart   (或apachectl graceful)
+再在浏览器里输入http://192.168.1.82/httpd-info得到的是
+(模块名字和配置文件书写方式,这是配置信息.没有连接的状态信息)
+
+再在apache官网手册找S开头的mod_status模块
+<Location "/server-status">
+    SetHandler server-status
+    Require host example.com
+</Location>
+
+修改后
+cat /etc/httpd/conf.d/info.conf
+<Location "/httpd-info">
+    SetHandler server-info
+</Location>
+
+ExtendedStatus On
+<Location "/httpd-status">
+    SetHandler server-status
+</Location>
+
+apache ~]# apachectl restart
+在浏览器里输入http://192.168.1.82/httpd-status
+
++++++++++++++++++++++++华丽的分隔线++++++++++++++
+配置lnmp和lamp中的mysql服务
+把之前的mysql包从真机上拷贝到nginx和mysql主机上(1.81和1.82地址)
+]# scp -P 10022 '/root/桌面/nosql包/db1/mysql-5.7.17.tar'  192.168.1.81:/root
+nginx ~]# mkdir mysql
+nginx ~]# tar -xf mysql-5.7.17.tar -C mysql/
+nginx ~]# yum -y install mysql/*
+
+nginx ~]# ls /var/lib/mysql/
+nginx ~]# vim /etc/my.cnf
+nginx ~]# systemctl start mysqld
+nginx ~]# ls /var/lib/mysql/
+auto.cnf         ib_logfile0         private_key.pem
+ca-key.pem       ib_logfile1         public_key.pem
+ca.pem           ibtmp1              server-cert.pem
+client-cert.pem  mysql               server-key.pem
+client-key.pem   mysql.sock          sys
+ib_buffer_pool   mysql.sock.lock
+ibdata1          performance_schema
+nginx ~]# grep "password" /var/log/mysqld.log 
+2018-09-05T09:31:44.831168Z 1 [Note] A temporary password is generated for root@localhost: ?s_oh;YfD2=t
+nginx ~]# mysql -uroot -p"?s_oh;YfD2=t"
+mysql> set global validate_password_policy=0;
+mysql> set global validate_password_length=6;
+mysql> set password="123456";
+真机上scp -P10022 '/root/桌面/exper1803/02/mydb.sql' 192.168.1.81:/root
+把mydb.sql导入数据库
+nginx ~]# mysql -uroot -p123456 <mydb.sql 
+mysql> show databases;
+ information_schema 
+ mydb  多出这一个库               
+ mysql              
+ performance_schema 
+ sys  
+
+mysql> use mydb;
+mysql> show tables;
+ myscript 
+ myusers  (有两个表)
+
+把exper文件里的02文件夹分别scp到nginx和apache主机(1.81和1.82)
+daxiuge888 ~]# scp -P10022 -r '/root/桌面/exper1803/02'  192.168.1.81:/root 
+
+nginx ~]# cp 02/*.php /usr/local/nginx/html/
+[root@nginx ~]# ls /usr/local/nginx/html/
+50x.html    info.php       testphp.php
+index.html  testmysql.php
+(testphp.php是一个运算(算出一个数字来)和testmysql.php是查询数据库的返回显示结果)
+
+vim testmysql.php
+<pre>   这里是对齐作用
+<?PHP
+$con = new mysqli('127.0.0.1','root','123456','mydb'); 对这一行修改,IP地址,用户,密码,被查的库名,不过这里的ip地址只有127.0.0.1才效不报错
+$sql = "select * from myusers,myscript order by myusers.uid limit 3";
+if(!$con)
+    die("connect error:".mysqli_connect_error());
+$rs = $con->query($sql);
+$c = array();
+while($r = $rs->fetch_row()){
+    print_R($r);
+}
+$con->close();
+?>
+
+注意(localhost和本机ip192.168.1.81都不行要改为127.0.0.1
+第一行加<pre>格式整齐)
+设置完后,用php testphp.php和testmysql.php看能正常运行不
+nginx html]# php testphp.php 
+5133
+
+++++++++++++++++++++++++++++++++
+apache的*.php设置(同nginx主机操作,先把mysql数据库安装好并设置密码,导入mydb.sql库)
+
+apache ~]# cp 02/*.php /var/www/html/
+(接着同上修改testmysql.php配置文件,改IP等)
+
+apache html]# php testmysql.php 
+PHP Fatal error:  Class 'mysqli' not found in /var/www/html/testmysql.php on line 2
+
+apache html]# yum list |grep php |grep mysql
+php-mysql.x86_64                           5.4.16-42.el7              local_repo
+php-mysqlnd.x86_64                         5.4.16-42.el7              local_repo
+
+(apache要连接到数据库上操作,必需要装php-mysqlnd的包)
+yum -y install php-mysqlnd.x86_64
+php testmysql.php  不成功
+apachectl restart  重启服务后
+php testmysql.php  成功
++++++++++++++++++++++
+测试页面
+nginx html]# curl http://www.baidu.com -o index.html
+apache html]# curl http://www.baidu.com -o index.html
+
+内存,cpu,系统状态,关于连接状态最重要的是并发量(同时访问,同时处理)
+
++++++++++++++华丽的分隔线+++++++++++++++
+三次握手和四次断开一共发了7个包
+握手其实也是4个,只不过其中把两个包合成一个包发了
+
+三次握手
+1.建立连接之前,server处于listen监听端口状态,这时client向server发送一个SYN报文请求连接,(发完SYN报文后)client进入SYN_SENT状态
+
+2.server收到cSYN报文后,回复ACK确认收到,因为双向连接(双工),server也向client发送SYN建立连接,把SYN和ACK合成一个报文SYN+ACK发送给clinet,server进入SYN_RECV状态(等待客户端的确认)
+
+3.client收到(receive)了SYN+ACK报文后,就进入了ESTABLISHED(此刻是半连接状态),再回发ACK给server,server收到ACK报文后确认连接后进入ESTABLISHED(达到真正的双向连接)
+(半连接是一方只给别一方发送数据)
+
+四次断开
+1.client发起FIN报文给server请求断开连接,后进入FIN_WAIT1状态.server收到FIN报文后,回复一个ACK报文确认收到,进入CLOSE_WAIT(等待关闭)
+
+2.clietn收到severACK报文进入了FIN_WAIT2状态,但因为双向连接(双工)server此时不一定把处理的数据全发完,可能还在发送数据给client
+
+3.当server完全发送完数据后,无后续操作时,就向client发送FIN报文,server进入LAST_ACK状态(最后一个ACK状态)
+
+4.client收到server的FIN报文后,就向server发送ACK报文确定收到,clinetf进入TIME_WAIT状态(等待2毫秒后)再进入CLOSED关闭连接;server收到client后进了CLOSED关闭连接.
+
+这个难点
+服务器主动向客户端请求断开连接(两边同时发FIN)
+C FIN-> 和<-FIN S
+FIN-WAIT1
+两端同时发送ACK后,同时进入CLOSING(也等ACK确认),同时进入TIME-WAIT后再断开连接
+
+重点
+SYN-RECEIVED多,证明客户端的响应非常慢,半接连攻击是这个状态多
+
+++++++++++++++++++++++++++++++++++
+常用的命令
+命令一:
+time看程序运行时间
+
+nginx html]# time php testphp.php 
+5133
+real	0m0.045s 这个程序执行45毫秒
+user	0m0.040s
+sys	0m0.003s
+
+nginx html]#  php --version
+PHP 7.2.2 
+nginx html]# time for i in {1..100};do php testphp.php;done
+real	0m4.075s
+user	0m3.800s
+sys	0m0.277s
+
+apache html]# php --version
+PHP 5.4.16
+apache html]# time for i in {1..100};do php testphp.php;done
+real	0m12.355s
+user	0m11.992s
+sys	0m0.349s
+(两个处理的时间差显示出php版本的提升的处理能力)
+
+命令二:
+free查看内存的使用情况
+              total        used        free      shared  buff/cache   available
+Mem:           1.7G        315M        1.2G        8.3M        225M        1.3G
+Swap:            0B          0B          0B
+
+命令三:
+top
+在负载不特别高,要观察它的状态时的主机上可用它来查看,负载特别高(用PS或ss查看,netstat也卡)的主机用它查看会卡死
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND      
+    1 root      20   0  125056   3668   2512 S   0.0  0.2   0:00.69 systemd      
+    2 root      20   0       0      0      0 S   0.0  0.0   0:00.00 kthreadd 
+%CPU是表示CPU的时间片
+%MEM是表示占用内存的百分比
+
+ 查看系统进程情况
+    top & ps
+    %CPU 上次更新到现在的CPU时间占用百分比
+    %MEM 程序执行占用内存百分比
+    virt 是虚拟内存
+    res 是常驻内存(常年驻守的)
+    shr 是共享内存
+virt大于res,virt就是运行程序时,临时占用的,但程序运行结束后就释放掉
+shr是进程间通讯用的
+
+进程状态 R S D T Z X
+    R  可执行状态
+    S  可中断的睡眠状态
+    D  不可中断状态（怨妇） 重启可解决,如两台搭配nfs服务,mount的那台客户机未umount,在别一台把NFS关机了,那mount客户机一肚子怨所,要不重启,就是再服务端开机恢复服务
+    T  暂停或跟踪  sleep 20后CTRL+Z再查看ps aux就有T了
+    t  跟踪调试状态
+    Z  退出态，没有销毁（僵尸，可使用 signal SIGCONT 找其 PPID 超度）
+    X  退出态，被销毁
+
+[root@nginx ~]# ss -ltun
+Netid  State    Recv-Q Send-Q   Local Address:Port     Peer Address:Port              
+udp    UNCONN    0      0           127.0.0.1:323       *:*                  
+tcp    LISTEN    0      128         *:80                *:*
+

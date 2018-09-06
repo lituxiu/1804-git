@@ -1,0 +1,19 @@
+
+yum问题一：httpd-2.4.6-40.el7.x86_64.rpm 的公钥尚未安装
+是由于gpgcheck没有设置为0
+
+ssh连接不上
+ssh: connect to host 192.168.1.81 port 22: Connection refused
+原因1:sshd_conf里的端口不是设置为22 ,经查看/etc/ssh/sshd_conf配置文件发瑞里port端口是设置为10022,再 ssh 192.168.1.81 -p10022连接成功了
+
+php-fpm服务起不来,
+报错 (code=exited, status=78)
+方法一:netstat -ntlp | grep 9000
+kill -9 1614
+service php-fpm start
+方法二是/usr/local/php/etc/php-fpm.d/www.conf配置文件里有错(我是在里面加了#注译出错的,PHP是;分号注释)
+
+DHCP问题
+PXE装机时,把本来的vbr虚拟网桥的DHCP三段配置删除,后创自定义模块主机时,用vim加dchp的3段配置回也无效,后用virsh net-edit再destroy和start重启vbr虚拟交换机就解决
+注意:修改网卡文件vbr.xml时要用virsh net-edit(否则用vim修改是生效不了的)
+同时还有个问题,改了这个vbr配轩后,用pre装机的两台机子也是1网段的,也是用vbr网桥的ping不通192.168.1.254,然后我在虚拟机里把vbr网卡删除再添加回,重启,此前的IP不变,可再继续使用,可能是有冲突

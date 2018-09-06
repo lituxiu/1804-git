@@ -49,6 +49,16 @@ daxiuge888 networks]# vim vbr.xml
   </ip>
 </network>
 (把<dhcp>的三行删掉,然后autostart里的也随之改变,不删掉的话pxe主机的dhcp跟真机vbr的虚拟交换机(虚拟网桥有冲突))
+注意:修改网卡文件vbr.xml时要用virsh net-edit(否则用vim修改是生效不了的)
+[root@daxiuge888 networks]# pwd
+/etc/libvirt/qemu/networks
+[root@daxiuge888 networks]# ls
+autostart     private2.xml  public2.xml  vbr.xml
+private1.xml  public1.xml   rhce.xml
+[root@daxiuge888 networks]# virsh net-edit vbr
+
+
+
 
 pxe主机上
 pxe ~]# yum -y install tftp dhcp
