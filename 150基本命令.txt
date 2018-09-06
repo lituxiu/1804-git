@@ -1,0 +1,184 @@
+
+必须熟练掌握的 150 个 linux 命令
+●线上查询及帮助命令（2 个）
+
+man help
+
+●文件和目录操作命令（13 个）
+
+ls tree pwd mkdir rmdir cd touch cp mv rm ln find rename
+
+●查看文件及内容处理命令（22 个）
+
+cat tac more less head tail cut split paste sort uniq wc iconv
+dos2unix file diff vimdiff chattr lsattr rev grep egrep
+tac是把cat内容反过来    split切隔，把一个文件变成多个文件
+paste把两个文件内容全成一个
+iconv转编码
+rev反转123456变成654321
+join
+
+
+●文件压缩及解压缩命令（4 个）
+
+tar unzip gzip zip
+
+●信息显示命令（12 个）
+
+uname hostname dmesg uptime file stat du df top free date cal
+dmesg查看系统故障信息
+top：执行top怎么看多核cpu信息，按1即可
+
+●搜索文件命令（4 个）
+
+which find whereis locate
+
+●用户管理命令（10 个）
+
+useradd usermod userdel groupadd passwd chage id su
+
+visudo sudo
+
+●基础网络操作命令（10 个）
+
+telnet ssh scp wget ping route ifconfig ifup ifdown netstat
+
+●深入网络操作命令（6 个）
+
+lsof route mail mutt nslookup dig host traceroute
+
+●有关磁盘文件系统的命令（8 个）
+
+mount umount df du fsck dd dumpe2fs dump  fdisk  parted
+mkfs partprobe e2fsck mkswap  swapon  sync  resize2fs
+
+●关机和查看系统信息的命令（3 个）
+
+shutdown halt init
+
+●系统管理相关命令（8 个）
+
+uptime top free vmstat mpstat iostat sar chkconfig
+iostat
+sar(sysstats)
+
+●系统安全相关命令（10 个）
+
+chmod chown chgrp chage passwd su sudo umask chattr
+
+lsattr
+
+●查看系统用户登陆信息的命令（7 个）
+
+whoami who w last lastlog users finger
+
+●查看硬件信息相关命令（8 个）
+
+ifconfig free fdisk ethtool mii-tool dmidecode dmesg lspci
+
+●其它（19 个）
+
+echo printf rpm yum watch alias unalias date clear history
+
+eject time nohup nc xargs exec export unset type
+
+●系统性能监视高级命令(12 个)
+
+内存:top free vmstat mpstat iostat sar
+
+CPU:top vmstat mpstat iostat sar
+
+I/O:vmstat mpstat iostat sar
+
+进程:ipcs ipcrm lsof strace lstrace
+
+负载:uptime
+
+mount umount df du fsck dd dumpe2fs dump
+
+●关机和查看系统信息的命令（3 个）
+
+shutdown halt init
+
+●系统管理相关命令（8 个）
+
+uptime top free vmstat mpstat iostat sar chkconfig
+
+●系统安全相关命令（10 个）
+
+chmod chown chgrp chage passwd su sudo umask chattr
+
+lsattr
+
+●查看系统用户登陆信息的命令（7 个）
+
+whoami who w last lastlog users finger
+
+●查看硬件信息相关命令（8 个）
+
+ifconfig free fdisk ethtool mii-tool dmidecode dmesg lspci
+
+●其它（19 个）
+
+echo printf rpm yum watch alias unalias date clear history
+
+eject time nohup nc xargs exec export unset type
+eject弹光驱命令
+nohup加&后台运行,java程序员喜欢用
+
+●系统性能监视高级命令(12 个)
+
+内存:top free vmstat mpstat iostat sar
+
+CPU:top vmstat mpstat iostat sar
+
+I/O:vmstat mpstat iostat sar
+
+进程:ipcs ipcrm lsof strace lstrace
+
+负载:uptime
+
+●关机/重启/注销命令（7）
+
+关机重启:
+
+shutdown init halt poweroff reboot
+
+注销退出：
+
+logout
+
+exit
+
+ctl+d ——>快捷键(生产常用)
+
+●进程管理：（16 个）
+
+bg：后台运行 fg：挂起程序 jobs：显示后台程序 kill,killall,pkill：杀掉进程
+
+crontab：设置定时 ps：查看进程 pstree：显示进程状态树
+
+top：显示进程 nice：改变优先权 nohup：用户退出系统之后继续工作
+
+pgrep：查找匹配条件的进程 strace：跟踪一个进程的系统调用(很重要)
+
+ltrace：跟踪进程调用库函数的情 vmstat：报告虚拟内存统计信息
+案例：网站访问慢。strace：跟踪一个进程的系统调用(很重要)
+一个web服务CPU访问很慢，top发现cpu负载很高，用strace跟踪php进程，最后发现的是开发人员写成死循环导致CPU高
+ PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND     879 root      20   0  115392   1760   1492 R  75.7  0.1  12:28.33 bash 
+ ]# strace -p 879
+write(1, "daxiuge888\n", 11)            = 11
+write(1, "daxiuge888\n", 11)            = 11
+write(1, "daxiuge888\n", 11)            = 11
+write(1, "daxiuge888\n", 11)            = 11
+write(1, "daxiuge888\n", 11)            = 11 （一起刷这个 ）
+
+●非常危险的系统命令（5 个）：
+
+mv rm
+
+fdisk parted dd
+
+●linux 系统四位剑客（3 个）
+
+grep（egrep） sed awk
