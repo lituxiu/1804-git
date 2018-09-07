@@ -44,3 +44,21 @@ yum erase -y httpd  从系统中移除一个或多个软件包
 
 curl -O(大写)把输出写到该文件中，保留远程文件的文件名
      -o(小写)把输出写到该文件中
+
+cp -r复制文件夹
+ ~]# ll a.txt 
+-rw-r--r-- 1 root root 0 9月   7 14:53 a.tx
+ ~]# cp a.txt{,.bak}
+ ~]# ls
+a.txt  a.txt.bak
+ ~]# cp svn/{,.bak}
+cp: 略过目录"svn/"
+ ~]# cp -r svn/{,.bak}
+cp: 无法将目录"svn/" 复制到自己"svn/.bak"
+ ~]# cp -r svn{,.bak}
+~]# ll
+-rw-r--r-- 1 root root    0 9月   7 14:53 a.txt
+-rw-r--r-- 1 root root    0 9月   7 14:54 a.txt.bak
+drwxr-xr-x 7 root root   76 9月   7 14:55 svn
+drwxr-xr-x 7 root root   76 9月   7 14:55 svn.bak
+

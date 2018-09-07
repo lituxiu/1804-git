@@ -162,7 +162,7 @@ top：显示进程 nice：改变优先权 nohup：用户退出系统之后继续工作
 
 pgrep：查找匹配条件的进程 strace：跟踪一个进程的系统调用(很重要)
 
-ltrace：跟踪进程调用库函数的情 vmstat：报告虚拟内存统计信息
+strace：跟踪进程调用库函数的情 vmstat：报告虚拟内存统计信息
 案例：网站访问慢。strace：跟踪一个进程的系统调用(很重要)
 一个web服务CPU访问很慢，top发现cpu负载很高，用strace跟踪php进程，最后发现的是开发人员写成死循环导致CPU高
  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND     879 root      20   0  115392   1760   1492 R  75.7  0.1  12:28.33 bash 

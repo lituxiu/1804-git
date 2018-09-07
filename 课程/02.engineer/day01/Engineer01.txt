@@ -1,4 +1,4 @@
-
+﻿
 还原三台虚拟机classroom server  desktop
 [root@server0 ~]# rht-vmctl  reset classroom
 [root@server0 ~]# rht-vmctl  reset server
@@ -43,9 +43,7 @@
 [root@server0 ~]# lsblk
 [root@server0 ~]# ls /dev/vdb[1-2]
 
-
        /dev/sda5:设备的含义  SCSI设备第一硬盘的第一个逻辑分区
-
 
 三  格式化,赋予空间文件系统
 
@@ -57,7 +55,7 @@
 [root@server0 ~]# blkid /dev/vdb1   #查看文件系统及UUID
 [root@server0 ~]# blkid /dev/vdb2   #查看文件系统及UUID
 
-       UUID:设备的唯一标识
+UUID:设备的唯一标识
 
 四  利用挂载提供访问点
 
@@ -70,7 +68,7 @@
 [root@server0 ~]# df -h
 
 五   开机自动挂载  /etc/fstab
- – 设备路径        挂载点         类型        参数        备份标记     检测顺序
+ – 设备路径   挂载点    类型   参数   备份标记  检测顺序
 
 补充 vim : 命令模式 按o 另起一行进入输入模式  
 [root@server0 ~]# vim /etc/fstab 
@@ -81,9 +79,8 @@
 [root@server0 ~]# df -h
 [root@server0 ~]# mount  -a
 [root@server0 ~]# df -h
-
-   检测/etc/fstab开机自动挂载配置文件,格式是否正确
-   检测/etc/fstab中,书写完成,但当前没有挂载的设备,进行挂载
+检测/etc/fstab开机自动挂载配置文件,格式是否正确
+检测/etc/fstab中,书写完成,但当前没有挂载的设备,进行挂载
 
 六 继续分区
 
@@ -115,7 +112,6 @@
 /dev/vdb6  /mypart6  xfs  defaults  0  0
 
 #######################################################
-
 图形添加一个 60G 硬盘
 
   1.关闭虚拟机Server0
@@ -137,7 +133,6 @@
  
 [root@server0 ~]# lsblk
 ####################################################
-
 LVM逻辑卷
 
    作用:  1.空间可以扩大   2.整合分散的空间
@@ -256,65 +251,4 @@ Do you really want to remove active logical volume lvtest01? [y/n]: y
 [root@server0 ~]# vgs
 [root@server0 ~]# vgremove myvg     #删除 卷组
 [root@server0 ~]# vgs
-
 ######################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,0 +1,244 @@
+ 请描述 RHEL6.x 系统的引导过程？ 
+加载 BIOS，检查硬件信息 
+读取并执行第一个开机设备内 MBR 
+运行 grub 引导加载 kernel
+内核启动/sbin/init 程序 
+init 系统初始化 
+确定默认的运行级别 
+触发 runlevel 事件，运行/etc/rc.d/rc 
+最后执行/etc/rc.d/rc.local 
+加载终端或 X-Window 接口
+++++++++++++++++++++++++++++
+描述 Linux 运行级别 0-6 的各自含义 
+0：关机模式 
+1：单用户模式（破解密码模式）<==破解 root 密码 
+2：无图型无网络支持的多用户模式 
+3：无图型有网络支持的多用户模式（文本模式，工作中最常用的模式）
+4：未使用 ，保留
+5：有图形有网络支持的 支持多用户模式（桌面）X-windows （图形用户接口）
+6: 重启模式
+切换是用init 0-6来实现
+
+RHEL7:
+  multi-user.target :字符模式/文本模式
+  graphical.target :图形模式
+临时切换
+[root@svr7 /]# systemctl isolate multi-user.target
+[root@svr7 /]# systemctl isolate graphical.target
+永久改变开机进入的模式
+[root@svr7 /]# systemctl get-default   #查看默认进入的模式
+[root@svr7 /]# systemctl set-default graphical.target
+[root@svr7 /]# reboot （设置完要重启才生效）
++++++++++++++++++++++++++++++
+systemctl控制
+– 负责掌控整个Linux的运行/服务资源组合
+– 服务目录:/lib/systemd/system/
+服务管理：
+  systemctl restart  httpd    #重起服务
+  systemctl status  httpd     #查看服务状态
+  systemctl start  httpd    #服务启动
+  systemctl stop   httpd    #服务停止
+  systemctl enable  httpd      #设置服务开机自起 
+  systemctl is-enabled httpd   #查看服务是否是开机自起 
+  systemctl disable httpd      #设置服务禁止开机自起 
+++++++++++++++++++++++++++++++
+修改配置文件/etc/fstab内容不支持快捷方式
+/etc/fstab
+设备路径   挂载点  类型  参数  备份标记   检测顺序
+
+目录结构
+/boot 存放系统引导必需的文件,包括内核、启动配置
+/bin、/sbin 存放各种命令程序
+/dev 存放硬盘、键盘、鼠标、光驱等各种设备文件
+/etc 存放Linux系统及各种程序的配置文件
+/root、/home/用户名 分别是管理员root、普通用户的默认家目录
+/var 存放日志文件、邮箱目录等经常变化的文件
+/proc 存放内存中的映射数据,不占用磁盘
+/tmp 存放系统运行过程中使用的一些临时文件
+
+date命令
+date +%F
+date +%Y%m%d    20180808的日期格式（常用备份格式）
+[root@node1 ~]# date +%F
+2018-08-08
+[root@node1 ~]# date +%Y%m%d
+20180808
+
+date -s "yyyy-mm-dd  HH:MM:SS" 修改时间
+[root@node1 ~]# date -s "20180808 08:08:08"
+[root@node1 ~]# date -s "20180808"
+
+
+du命令
+[root@node1 ~]# du -s svn/
+592	svn/
+[root@node1 ~]# du -sh svn/
+592K	svn/
+-s:只统计每个参数所占用的总空间大小
+-h:提供易读容量单位(K、M等）
+
+软链接和硬链接？
++++++++++++++++++
+DNS服务器（这个还需好好总结 ？，知识弱点）
+~]# yum -y install bind-chroot  bind  bind-utils
+bind-9.9.4-29.el7.x86_64   //域名服务包
+bind-chroot-9.9.4-29.el7.x86_64  //提供虚拟根支持,牢笼政策
+bind-utils有时没有nslookup命令时，要装这个包
+修改配置文件# vim /etc/named.conf 
+	options {
+		directory 	"/var/named";   #指定地址库文件的位置
+	};
+	zone "tedu.cn" IN {         #指定本地负责解析的域名
+		type  master;           #指定本机为主DNS服务器
+		file "tedu.cn.zone";    #指定地址库文件名称
+	};
+ cd  /var/named/
+[root@svr7 named]# cp -p  named.localhost  tedu.cn.zone 
+ named]# ll -l tedu.cn.zone 
+-rw-r----- 1 root named 204 9月   7 14:16 tedu.cn.zone （属组要对应named,否则解析不了，所以cp时要加-p保持源文件属性不变）
+vim qq.com.zone
+qq.com.      NS      svr7
+svr7          A      192.168.4.7
+www          A      1.2.3.4
+ftp           A      1.1
+
+vim /etc/named.conf
+options{
+ directory "/var/named";
+};
+zone "tedu.cn"IN{
+ type master;
+ file "tedu.cn.zone";
+};
+zone "qq.com"IN{
+ type master;
+ file "qq.com.zone";
+};
+nslookup命令测试解析，最后加DNS服务器地址可指定那个DNS服务器解析
+[root@node1 named]# nslookup www.qq.com 192.168.1.254
+Server:		192.168.1.254
+Address:	192.168.1.254#53
+Non-authoritative answer:
+www.qq.com	canonical name = https.qq.com.
+Name:	https.qq.com
+Address: 183.3.226.35
+[root@node1 named]# nslookup www.qq.com 192.168.1.1
+Server:		192.168.1.1
+Address:	192.168.1.1#53
+Name:	www.qq.com
+Address: 2.2.2.1
+
+递归查询：
+     客户端请求DNS服务器解析域名，DNS服务器与其他DNS服务器询问，最终将查询结果带回来过程
+以下说明，当自己本机的DNS地址库没有解析的地址，可向相连的DNS服务搜索结果再返回结果
+named]# nslookup www.baidu.com 192.168.1.1  （是在192.168.1.254解析出来的结果 ）
+Server:		192.168.1.1
+Address:	192.168.1.1#53
+Non-authoritative answer:
+www.baidu.com	canonical name = www.a.shifen.com.
+Name:	www.a.shifen.com
+Address: 14.215.177.38
+Name:	www.a.shifen.com
+Address: 14.215.177.39
+
+ DNS 的解析过程？ 
+第一步：客户机提出域名解析请求,并将该请求发送给本地的域名服务器。
+第二步：当本地的域名服务器收到请求后,就先查询本地的缓存,如果有该纪 录项,则本地的域名服务器就直接把查询的结果返回。 
+第三步：如果本地的缓存中没有该纪录,则本地域名服务器就直接把请求发 给根域名服务器,然后根域名服务器再返回给本地域名服务器一个 所查询域(根的子域)的主域名服务器的地址。 
+第四步：本地服务器再向上一步返回的域名服务器发送请求,然后接受请求 的服务器查询自己的缓存,如果没有该纪录,则返回相关的下级的 域名服务器的地址。 
+第五步：重复第四步,直到找到正确的纪录。 
+第六步：本地域名服务器把返回的结果保存到缓存,以备下一次使用,同时还 将结果返回给客户机
+
+DNS 的工作原理？ 
+域名解析有正向解析和反向解析之说，正向解析就是将域名转换成对应的 IP 地址的过程，它应用于在浏览器地址栏中输入网站域名时的情形；而反向解析是 将 IP 地址转换成对应域名的过程，但在访问网站时无须进行反向解析，即使在 浏览器地址栏中输入的是网站服务器 IP 地址，因为互联网主机的定位本身就是 通过 IP 地址进行的，只是在同一 IP 地址下映射多个域名时需要。另外反向解析 经常被一些后台程序使用，用户看不到。  
+除了正向、反向解析之外，还有一种称为“递归查询”的解析。“递归查询” 的基本含义就是在某个 DNS 服务器上查找不到相应的域名与 IP 地址对应关系时， 自动转到另外一台 DNS 服务器上进行查询。通常递归到的另一台 DNS 服务器对 应域的根 DNS 服务器。因为对于提供互联网域名解析的互联网服务商，无论从 性能上，还是从安全上来说，都不可能只有一台 DNS 服务器，而是由一台或者 两台根 DNS 服务器（两台根 DNS 服务器通常是镜像关系），然后再在下面配置 了多台子 DNS 服务器来均衡负载的（各子 DNS 服务器都是从根 DNS 服务器中 复制查询信息的），根 DNS 服务器一般不接受用户的直接查询，只接受子 DNS 服务器的递归查询，以确保整个域名服务器系统的可用性。  
+当用户访问某网站时，在输入了网站网址（其实就包括了域名）后，首先就 有一台首选子 DNS 服务器进行解析，如果在它的域名和 IP 地址映射表中查询到 相应的网站的 IP 地址，则立即可以访问，如果在当前子 DNS 服务器上没有查找 到相应域名所对应的 IP 地址，它就会自动把查询请求转到根 DNS 服务器上进行 查询。如果是相应域名服务商的域名，在根 DNS 服务器中是肯定可以查询到相 应域名 IP 地址的，如果访问的不是相应域名服务商域名下的网站，则会把相应 查询转到对应域名服务商的域名服务器上
+++++++++++++++
+RAID阵列概述
+? 廉价冗余磁盘阵列
+– Redundant Arrays of Inexpensive Disks
+– 通过硬件/软件技术,将多个较小/低速的磁盘整合成一个大磁盘
+
+– 阵列的价值:提升I/O效率、硬件级别的数据冗余
+– 不同RAID级别的功能、特性各不相同
+
+? RAID 0,条带模式
+– 同一个文档分散存放在不同磁盘
+– 并行写入以提高效率
+– 至少需要2块磁盘
+
+? RAID 1,镜像模式
+– 一个文档复制成多份,分别写入不同磁盘
+– 多份拷贝提高可靠性,效率无提升
+– 至少需要2块磁盘
+
+? RAID5,高性价比模式
+– 相当于RAID0和RAID1的折中方案
+– 需要至少一块磁盘的容量来存放校验数据
+– 至少需要3块磁盘
+
+? RAID6,高性价比/可靠模式
+– 相当于扩展的RAID5阵列,提供2份独立校验方案
+– 需要至少两块磁盘的容量来存放校验数据
+– 至少需要4块磁盘
+
+? RAID 0+1/RAID 1+0
+– 整合RAID 0、RAID 1的优势
+– 并行存取提高效率、镜像写入提高可靠性
+– 至少需要4块磁盘
+
+? 硬RAID:由RAID控制卡管理阵列
+– 主板 --> 阵列卡 --> 磁盘 --> 操作系统 --> 数据
+? 软RAID:由操作系统来管理阵列
+– 主板--> 磁盘-->操作系统-->RAID软件 -->数据
++++++++++++++++++++
+DHCP工作原理
+
++++++++++++++++++++
+rsync(remote sync远程同步)
+? rsync操作选项
+-n:测试同步过程,不做实际修改
+--delete:删除目标文件夹内多余的文档
+-a:归档模式,相当于-rlptgoD
+-v:显示详细操作信息
+-z:传输过程中启用压缩/解压
+（前是被同步的样版文件夹，后是同步的目标文件夹）
+[root@node1 ~]# mkdir a b
+[root@node1 ~]# touch a/a.txt
+[root@node1 ~]# touch b/b.txt
+node1 ~]# rsync -avz a b
+node1 ~]# ls b
+a  b.txt
+node1 ~]# rm -rf b/a/
+node1 ~]# ls b/
+b.txt
+[root@node1 ~]# rsync -avz a/ b/
+[root@node1 ~]# ls b
+a.txt  b.txt  （被同步的样版文件夹后不加/的话是把自己的文件夹出同步到目标文件夹了，加/才是同步文件夹里的所有）
+
+rsync+SSH同步
+? 与远程的 SSH目录保持同步
+– 下行:rsync [...]   user@host:远程目录    本地目录
+（远程同步文件到本机）
+– 上行:rsync [...]   本地目录       user@host:远程目录
+（本地同步文件到远程）
+(两台主机或多台主机同步时,需要每台主机都装有rsync包才行,要不同步时就会报错bash: rsync命令找不到)
+rsync -avz  --delete /etc/yum.repos.d/  root@192.168.1.2:/etc/yum.repos.d/
+
+ /]# vim /root/rsync.sh
+ #!/bin/bash
+   while    inotifywait -rqq /opt/
+   do
+      rsync -az --delete /opt/  root@192.168.4.207:/opt/
+   done  &
+
+监控目录变化
+inotifywait监控
+? 基本用法
+– inotifywait [选项] 目标文件夹
+? 常用命令选项
+-m,持续监控(捕获一个事件后不退出)
+-r,递归监控、包括子目录及文件
+-q,减少屏幕输出信息
+-e,指定监视的 modify、move、create、delete、
+attrib 等事件类别

@@ -19,8 +19,6 @@
    4.利用本地/dev/cdrom挂载,搭建本地Yum仓库   
    5.主机名：cobbler.tedu.cn
 
-
-
 三、利用scp真机传递Cobbler.zip包到虚拟机192.168.4.180中
  # scp /root/桌面/Cobbler.zip   root@192.168.4.180:/root/
 
@@ -45,15 +43,12 @@
 cobbler网络装机部署
 
 1.安装软件 cobbler cobbler-web dhcp tftp-server pykickstart httpd  tftp-server 
-
  cobbler         #cobbler程序包
  cobbler-web     #cobbler的web服务包
  pykickstart     #cobbler检查kickstart语法错误
  httpd           #Apache web服务
  dhcp            #dhcp服务
  tftp-server     #tftp服务
-
-
 
 2.配置cobbler
 [root@svr7 /]# vim  /etc/cobbler/settings
@@ -66,23 +61,17 @@ cobbler网络装机部署
  开机启动： 匹配及停止  
      1.硬盘启动   2.光驱设备  3.U盘  4.网络引导   
  
-
-
 3.配置cobbler的dhcp
 [root@svr7 /]# vim  /etc/cobbler/dhcp.template 
 
   :%s  /192.168.1/192.168.4/g    #全文替换
 
-
 4.绝对路径解压cobbler_boot.tar.gz    #众多的引导文件
-
 # tar -tf  /Cobbler/cobbler_boot.tar.gz   #查看包里面内容
 # tar -xPf  /Cobbler/cobbler_boot.tar.gz  #绝对路径释放
-
 # ls  /var/lib/cobbler/loaders/
 
 5.启动相关服务
-
 [root@svr7 /]# systemctl restart cobblerd
 [root@svr7 /]# systemctl enable cobblerd
 
@@ -98,10 +87,8 @@ cobbler网络装机部署
 6.同步刷新cobbler配置
 [root@svr7 /]# cobbler sync
 [root@svr7 /]# firefox https://192.168.4.180/cobbler_web
-
    用户名：cobbler
    密码：cobbler
-
 
 ##########################################################################################################
   cobbler import  --path=挂载点   --name=导入系统命名（随意起）
@@ -130,8 +117,6 @@ profiles:
   安装完成机器 默认root  密码  cobbler
 
 ##########################################
-
-############################################################################################################
 [root@cobbler ~]# system-config-kickstart  #生成ks文件
 
 默认kickstart文件存放位置：/var/lib/cobbler/kickstarts/
@@ -143,35 +128,3 @@ profiles:
 
 [root@cobbler ~]# cobbler profile report
 [root@cobbler ~]# cobbler sync  #同步配置
-
-############################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

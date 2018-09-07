@@ -1,12 +1,6 @@
-# rpm  -e vsftpd   #卸载vsftpd程序
-# rpm  -q vsftpd   #查询软件包是否卸载成功   没装会显示
-]# rpm -q httpd mariadb-server
-未安装软件包 httpd 
-未安装软件包 mariadb-server 
+﻿# rpm  -e vsftpd   #卸载vsftpd程序
+# rpm  -q vsftpd   #查询软件包是否卸载成功 
 # rpm  -qa         #查询已经安装的所有rpm包
-]# rpm -qa httpd mariadb-server
-]# 没有就不显示
-
 补充：导入官方的签名 信息
 # rpm --import /dvd/RPM-GPG-KEY-redhat-release
 
@@ -32,27 +26,29 @@ yum repolist    #列出仓库信息
     每次开机自动启用配置
 
 管道  |  作用：将前面命令的输出结果，作为后面命令的参数
-用户名：密码占位符：UID：基本组GID：用户描述信息:用户家目录：解释器
 – useradd [选项]... 用户名
 – -u 用户id、-d 家目录路径、-s 登录Shell解释器
 – -g 基本组、-G 附加组
 echo 123  |  passwd  --stdin  nsd01（非交互式设置密码）
 用户密码信息存放在 /etc/shadow 文件
+用户名：密码占位符：UID：基本组GID：用户描述信息:用户家目录：解释器
 userdel  [-r] 用户名     #删除用户，并且删除用户的家目录
 
 组基本信息存放在 /etc/group 文件
+组名：组的密码占位符：组的GID：组成员列表
 groupadd [-g 组ID] 组名
 groupdel 组名
 gpasswd -a harry stugrp  #用户加入组
 gpasswd -d harry stugrp  #将用户从组中删除
-
++++++++++++++++++
+压缩工具tar和zip
 gzip----》.gz       -z
 bzip2----》.bz2     -j
 xz----》.xz         -J
 • tar 集成备份工具
  – -c:创建归档
  – -x:释放归档
- – -f:指定归档文件名称
+ – -f:指定归档文件名称（注意f后紧跟文件名）
  – -z、-j、-J:调用 .gz、.bz2、.xz 格式的工具进行处理
  – -t:显示归档中的文件清单
  – -C（大写）:指定释放的位置
@@ -60,6 +56,14 @@ xz----》.xz         -J
 打包：tar 选项 压缩包名 被压缩归档的源文档
 解包: tar 选项 压缩包名 -C 释放的位置
 
+ zip归档工具,跨平台的压缩格式
+zip [-r] 备份文件.zip 被归档的文档...
+]# zip -r /opt/test.zip  /home/  /root/
+• 释放归档+解压操作
+unzip 备份文件.zip [-d 目标文件夹]
+]# unzip /opt/test.zip -d /mnt
+
+++++++++++++++++++
 NTP时间同步
 服务：为客户机提供标准时间
 – NTP服务器为客户机提供标准时间
@@ -73,11 +77,17 @@ NTP时间同步
   #server 1.rhel.pool.ntp.org  iburst
   #server 2.rhel.pool.ntp.org  iburst
   server classroom.example.com  iburst
+验证时间是否同步
+方法一
 [root@server0 ~]# date
-[root@server0 ~]# date -s "2000-10-1  12:30:10"
+[root@server0 ~]# date -s "2000-10-1  12:30:10" 修改时间
 [root@server0 ~]# date
 [root@server0 ~]# systemctl  restart  chronyd
 [root@server0 ~]# date
+方法二
+~]# chronyc  sources  -v
+这命令后*是同步成功    +是备胎    ?是同步失败
+（不出现?情况下一般是时间同步功能能实现的）
 
 cron计划任务
 周期性任务
@@ -98,20 +108,39 @@ cron计划任务
 [root@server0 ~]# cat /opt/time.txt
 [root@server0 ~]# crontab -e              #书写周期性计划任务
 [root@server0 ~]# crontab -l              #查看周期性计划任务
+格式：分时日月周  命令+绝对路径
 */1  *  *  *  *    date  >>  /opt/time.txt
 
 grep 命令：在文本文件内容，过滤指定字符串
 -i: 忽略大小写
 -v: 取反查找
+-c:区配到条件的行数（区配空行-c "^$"）
+-o:只显示一行匹配到的字符（grep是默认显示匹配条件的整行）
 显示/etc/login.defs有效信息(去除注释，去除空行)
 # grep -v  ^#  /etc/login.defs  |  grep  -v  ^$
+ ~]# grep -c "^$"  /etc/passwd  在这个文件里有3行空行
+3
+[root@node1 ~]# grep root /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+operator:x:11:0:operator:/root:/sbin/nologin
+[root@node1 ~]# grep -o root /etc/passwd
+root
+root
+root
+root
 
 基本权限
 访问方式(权限)
 – 读取:允许查看内容-read :r
 – 写入:允许修改内容-write :w
 – 可执行:允许运行和切换-execute :x ['eksikju:t]
+• 权限的数值化
+– 基本权限:r = 4,w = 2,x = 1
+[root@svr7 ~]# mkdir /nsd01
+[root@svr7 ~]# ls -ld /nsd01
 
+[root@svr7 ~]# chmod 700 /nsd01
+[root@svr7 ~]# ls -ld /nsd01
 • 权限适用对象(归属)
   – 所有者:拥有此文件/目录的用户-user u
   – 所属组:拥有此文件/目录的组-group    g
@@ -152,6 +181,8 @@ chmod -R  u=rwx,g=rx,o=---  /nsddir/
 [root@server0 ~]# su - student
 [student@server0 ~]$ /usr/bin/mkdir test01
 [student@server0 ~]$ /usr/bin/xixidir test02
+（mkdir是权限实行，student用户用xixidir才能创建文件，SUID发挥的作用）
+
 （Sticky Bit）
 • 附加在其他人的 x 位上
 – 其他人的权限标识会变为 t
@@ -162,6 +193,9 @@ chmod -R  u=rwx,g=rx,o=---  /nsddir/
 [root@server0 ~]# mkdir /public
 [root@server0 ~]# chmod ugo=rwx /public
 [root@server0 ~]# chmod o+t /public
+其中的/tmp目录是典型的权限t文件，不同的用户（除了root外），只能修改自己的文件
+drwxrwxrwt. 10 root root 4096 8月   8 2008 /tmp
+
 
 acl访问控制列表
 acl策略的作用
@@ -178,6 +212,7 @@ acl策略的作用
 – setfacl -x u:用户名 文档...  #删除指定的ACL setfacl -x u:gelin01 /nsd10
 – setfacl -b 文档...  #删除所有ACL setfacl -b /nsd10
 -R: 递归设置 
+（权限三大类：基本权限，特殊权限，acl访问控制列表）
 
 使用LDAP认证,网络用户
      网络用户:LDAP服务器存储
@@ -214,9 +249,3 @@ LDAP和NFS间的联系？？
 # find /etc/ -maxdepth 2 -name "*.conf"
 # find /var/log -mtime +90 #过去时间90天之前
 # find /var/log -mtime -90 #过去时间90天之内
-
-
-
-
-
-

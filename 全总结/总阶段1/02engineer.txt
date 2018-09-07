@@ -1,0 +1,10 @@
+磁盘分区
+磁道：track  扇区：sector 默认512字节
+一块硬盘的“艺术”之旅：识别硬盘->分区规划->格式化->挂载使用
+一、识别硬盘
+~]# lsblk  列出所有块设备
+NAME   MAJ:MIN RM SIZE RO TYPE MOUNTPOINT
+vda    253:0    0   8G  0 disk 
+└─vda1 253:1    0   8G  0 part /
+二、分区规划
+分区模式：MBR(MSdos)和

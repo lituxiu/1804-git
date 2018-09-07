@@ -1,4 +1,4 @@
-
+﻿
 
 systemctl控制
 
@@ -47,23 +47,3 @@ RHEL7:
 [root@svr7 /]# systemctl set-default graphical.target
 
 [root@svr7 /]# reboot
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
