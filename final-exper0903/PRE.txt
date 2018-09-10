@@ -1,0 +1,8 @@
+F10    OS    选择RAID级别  
+ UEFI是U盘引导   BIOS是主机（网络）引导
+
+CTRL +ALT+DEL重启
+NIC网卡名称
+
+device setting第一个
+create 

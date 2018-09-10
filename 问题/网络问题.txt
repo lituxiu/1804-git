@@ -1,0 +1,23 @@
+
+问题一
+VMware在win10桌面用xshell6连接在防火墙或selinux开启的情况下，用桥接，NAT模式连不上，用仅主机模式可连上
+桥接：直接连接物理网络
+NAT：与主机共享的专用网络
+仅主机：与主机共享的专用网络
+解决方案：把WIN和vm主机里的selinux和防火墙都关了后三个模式都可以用xsheel6连接上vm
+(手提和VM虚拟的两个防火墙也关)
+
+问题二
+手提用无线网络边接的WIFI，vm网卡为桥接模式，分配的ip是192.168.1.0网段，然后vm里的主机的kvm主机的有个vbr虚拟网桥也两样是1网段的，然后启动vbr网桥时报错，如下 
+~]# virsh net-start vbr
+错误：开始网络 vbr 失败
+错误：内部错误：接口 eno16777736 已在使用网络
+解决方案：把VM网卡由桥接设置为仅主机，然后分配的网段和vbr不同一网段，不会冲突了，再用命令启动vbr网桥就可以了
+（注意点的是主机模式是上不了外网）
+
+问题三
+vbr网段有时同网段并不通，或者在VM开启kvm创的虚拟后vbr网桥分配不了DHCP的IP。
+解决：只能用virsh-manager打开的管理器，点灯泡把网卡设备删掉再新增加回vbr选项的网卡即可
+
+问题四pxe装机在真机上创个新系统盘（无系统）后，启动pxe装机时，出现pxe装机时No more network devices Booting from Hard Disk... Boot failed: not boot disk，连系统选项菜单也进不入
+解决，是由于PXE主机的防火墙和SELINUX没有关闭，导致被装系统的机子不能读取到pxelinux.0网卡引导文件

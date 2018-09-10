@@ -17,10 +17,6 @@ systemctl start dhcpd  端口67
 
 按esc选第三开始pxe安装系统
 
-
-
-
-
 ++++++++++++++++++++++++++++++++
 daxiuge888 ~]# qemu-img create -b /var/lib/libvirt/images/daxiuge8.qcow2  -f qcow2 /var/lib/libvirt/images/pxe.img 8
 (这里的8里漏了个8G,否则启动时是黑屏)
@@ -28,8 +24,6 @@ daxiuge888 ~]# qemu-img create -b /var/lib/libvirt/images/daxiuge8.qcow2  -f qco
 (错误)daxiuge888 ~]# sed -i "s/node/pxe/" /var/lib/libvirt/images/node.xml  >/etc/libvirt/pre.xml
 
 sed  "s/node/pxe/" /var/lib/libvirt/images/node.xml  >pxe.xml
-
-
 
 +++++++++++++++++++++++企业pxe装机++++++++++++++++++
 把pxe主机的网桥删除
@@ -56,9 +50,6 @@ daxiuge888 networks]# vim vbr.xml
 autostart     private2.xml  public2.xml  vbr.xml
 private1.xml  public1.xml   rhce.xml
 [root@daxiuge888 networks]# virsh net-edit vbr
-
-
-
 
 pxe主机上
 pxe ~]# yum -y install tftp dhcp
@@ -98,6 +89,7 @@ pxe ~]# systemctl start dhcpd
 pxe ~]# systemctl enabled dhcpd
 
 设置ftp(包vsftpd 服务vsftpd 文件路径/var/ftp/pub)
+主要是用来装系统源和ks自动安装文件
 pxe ~]# yum -y install vsftpd
 pxe ~]# vim /etc/vsftpd/vsftpd.conf
 userlist_enable=YES
@@ -120,9 +112,8 @@ pxe ~]# systemctl start vsftpd
 也把ks7.cfg文件话在ftp默认路径下/var/ftp/pub/中,在ks7.cfg里修改下从真机网络安装,以及配置真机yum源(安装源就是这里的yum源)
 
 
-设置tftp服务(包是tftp-server 服务tftp 文件路径/var/lib/tftpboot)
+设置tftp服务(包是tftp-server 服务tftp 文件路径/var/lib/tftpboot) tftp包是什么？
 pxe ~]# yum -y install tftp-server
-(lftp怎么连到除了ftp的文件外的文件下载)
 真机daxiuge888 ~]# scp -r '/root/桌面/nsd1804/exper/01/tftpboot'  192.168.1.163:/var/lib/tftpboot
 
 pxe tftpboot]# ls
