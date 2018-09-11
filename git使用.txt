@@ -119,7 +119,8 @@ $ git pull origin master 更新远程的分支，最后提示更新成功
              * branch            m aster     -> FETCH_HEAD
              Already up to date.
 
-
+问题四：error: RPC failed; curl 56 OpenSSL SSL_read: SSL_ERROR_SYSCALL, errno 10054
+这个网络延迟造成本地文件上传github仓库失败多，重新传几次，或在晚上凌晨左右人少上网络会好点
 
 
 ＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋＋
