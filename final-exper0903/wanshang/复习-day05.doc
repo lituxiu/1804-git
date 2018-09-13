@@ -1,0 +1,58 @@
+web服务器的虚拟主机实现方式：
+1、基于IP地址
+2、基于端口
+3、基于域名
+
+yum源
+http://mirrors.aliyun.com
+http://mirrors.163.com
+https://fedoraproject.org/wiki/EPEL/zh-cn
+
+DNS: 域名系统/服务
+dns客户端名称解析的流程：  www.baidu.com
+1、本机缓存
+2、检查/etc/hosts
+3、本地DNS服务器(配置网络参数时指定的)
+4、本地DNS服务器发根域服务器发起DNS迭代查询
+
+dns查询分为：迭代查询和递归查询
+
+DNS的资源记录类型：
+SOA：起始授权，指定权威服务器
+NS：名称服务器，每个DNS服务器都会对应一个NS记录
+A：将名称解析为IP地址
+PTR：指针记录，将IP地址解析为名称
+MX：邮件交换器
+CNAME：别名记录
+[root@room8pc16 review]# nslookup 
+> server 8.8.8.8    指定google的DNS进行解析
+> set type=ns   指定查询类型是NS
+> 163.com   查询163.com的NS记录
+> set type=mx   指定查询类型是邮件交换器
+> 163.com
+
+PXE项目：
+1、名称：服务器批量部署平台
+2、描述：达内教学境需要用到不同的系统，如centos6/7，RHEL6/7。服务器安装完毕后还需要对它做一些初始化操作
+服务器通过网络安装系统，首先它要有网络参数，所以需要配置DHCP服务，为客户端分配IP地址等参数；服务器没有系统，需要从网络引导启动，所以需要配置tftp服务，为客户端提供引导文件；客户端在安装软件时，需要使用网络源，所以配置vsftpd作为yum源。系统在安装过程中，将会询问管理员一系列的问题，为了实现无人值守、自动应答，需要配置kickstart，为客户端提供应答文件。系统安装完成后，还可以通过安装后脚本实现初始化。
+
+代理服务器
+正向代理：靠近客户端，为客户端访问网络进行加速
+反向代理：靠近服务器，为服务器响应客户端进行加速
+
+cluster：集群
+集群分类：高性能计算HPC、负载均衡集群LB、高可用HA
+LVS工作模式：NAT/DR/TUN
+Keepalived: VIP
+
+openstack
+1、horison   web管理门户
+2、keystone  认证
+3、cinder    云硬盘
+4、glance    镜像管理
+5、neutron   网络管理
+6、nova      云主机管理
+7、swift     分布式文件系统
+
+docker
+dockerfile

@@ -57,9 +57,10 @@ mysqldump -uroot -p123456 db3 > /bakdir/db3_${x}.sql
 00  23  * *  1    /root/alldb3.sh      &>  /dev/null
 :wq
 
+++++++++++++++++++++++++++++++++++++
 5增量备份与恢复：
 1、启用MySQL服务自带的binlog日志 文件
-2、安装第3方软件提供的命令innobackupex  ***
+2、安装第3方软件提供的命令innobackupex（读音是：innoback卡）
 
 binlog日志的使用：
 日志介绍：是服务日志文件中的一种（默认没有启用） 记录除查询之外的sql命令.

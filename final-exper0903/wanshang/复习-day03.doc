@@ -1,0 +1,81 @@
+RAID：独立磁盘冗余阵列。构成、性能、容错、空间利用率
+RAID0：条带卷，2块以上，性能最好，无容错，100％
+RAID1：镜像卷，2块磁盘，性能无提升，容错级别最高，50％
+RAID1E:增强的RAID1，3块以上
+RAID5：相当于是RAID0和RAID1的折中，(n-1)/n
+RAID6：有2块盘的空间写校验，4块以上
+RAID10：RAID1和RAID0的组合，同时关心性能和容错
+RAID50：
+
+编写脚本：
+1、通过位置参数传递要创建的用户数目，未给定默认5个
+2、用户名是userN
+3、初始密码是123456
+4、用户首次登陆必须改密码
+
+#!/bin/bash
+
+number=$1
+counter=0
+
+while [ $counter -lt $number ]
+do
+    let n++
+    id user$n &> /dev/null
+    if [ $? -ne 0 ]; then
+        useradd user$n
+        echo 123456 | passwd --stdin user$n &>/dev/null
+        chage -d0 user$n
+        let counter++
+        echo -e "create user$n\t\t\t\033[32;1m[Done]\033[0m"
+    fi
+done
+
+计划任务
+05 * * * * command  每小时的05分
+05 21 * * * command  每天21:05执行
+05 21 5 * * command  每月5号21:05执行
+05 21 5 10 * command  每年10月5号21:05执行
+05 21 * * 1 command 每周1的21:05执行
+*/5 8-18 * * 1,3,5  每一三五早8点到晚6点，每隔5分钟执行
+
+权限的644意思是：rw-r--r--  root root
+r:4   w:2  r:1
+
+系统中的命令在执行期间是有身份的。root执行ls，ls以root身份运行，zs执行ls，ls以zs身份运行。
+suid: 以属主的身份运行程序/命令
+[root@node1 bin]# ls /root/  成功
+[user1@node1 root]$ ls /root/   权限不够
+[root@node1 bin]# ll /bin/ls
+[root@node1 bin]# chmod u+s /bin/ls
+[root@node1 bin]# ll /bin/ls
+[user1@node1 root]$ ls /root/   成功
+
+[user1@node1 ~]$ touch u1.txt
+[root@node1 bin]# chmod u+s /bin/touch
+[user1@node1 ~]$ touch u2.txt
+[user1@node1 ~]$ ll   # u1属主是user1，u2属主是root
+
+sgid: 在目录中新建的文件，继承所在目录的属组
+[root@node1 bin]# mkdir /tmp/demo
+[root@node1 bin]# chgrp user1 /tmp/demo
+[root@node1 bin]# ll -d /tmp/demo
+[root@node1 bin]# cp /etc/passwd /tmp/demo
+[root@node1 bin]# ll /tmp/demo
+passwd属组是root
+[root@node1 bin]# chmod g+s /tmp/demo
+[root@node1 bin]# cp /etc/hosts /tmp/demo
+[root@node1 bin]# ll /tmp/demo
+hosts的属组是user1
+
+sticky bit:粘滞位，用户只能删除自己的文件
+[user1@node1 ~]$ ll -d /tmp/ /var/tmp/
+[user1@node1 ~]$ echo 'hello' > /tmp/user1.txt
+[user2@node1 ~]$ echo user2 > /tmp/user2.txt
+[user1@node1 ~]$ rm -f /tmp/user2.txt 
+[user1@node1 ~]$ rm /tmp/user1.txt 
+
+MBR: 2.2T左右磁盘，4个分区
+GPT:支持大磁盘，128个主分区
+
+lvm:逻辑卷管理。它是动态管理存储空间的方法。首先，将磁盘或分区转换成物理卷PV，再将PV组合成卷组VG，最后，在VG上创建逻辑卷LV。LV可以像普通分区一样，进行格式化、挂载。如果LV的空间不足，还可以实现在线扩容。

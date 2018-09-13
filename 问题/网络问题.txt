@@ -21,3 +21,6 @@ vbr网段有时同网段并不通，或者在VM开启kvm创的虚拟后vbr网桥分配不了DHCP的IP。
 
 问题四pxe装机在真机上创个新系统盘（无系统）后，启动pxe装机时，出现pxe装机时No more network devices Booting from Hard Disk... Boot failed: not boot disk，连系统选项菜单也进不入
 解决，是由于PXE主机的防火墙和SELINUX没有关闭，导致被装系统的机子不能读取到pxelinux.0网卡引导文件
+
+
+问题4安装zabbix时，进入本机/index.php安新界面时，只能在welcome界面，点击next setup无法进入下一个界面check of pre-requisite，是因为/etc/php.ini和/var/lib/php环境问题，修改两个权限为777还是不行，网上是更换一份/etc/php.ini，而我是重新装了下php包再重起php-fpm就可以了

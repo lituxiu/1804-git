@@ -88,7 +88,7 @@ NTP时间同步
 ~]# chronyc  sources  -v
 这命令后*是同步成功    +是备胎    ?是同步失败
 （不出现?情况下一般是时间同步功能能实现的）
-
++++++++++++++++++++++++++++++++++++++++
 cron计划任务
 周期性任务
 • 用途:按照设置的时间间隔为用户反复执行某一项固定的系统任务
@@ -111,6 +111,17 @@ cron计划任务
 格式：分时日月周  命令+绝对路径
 */1  *  *  *  *    date  >>  /opt/time.txt
 
+全局配置是在/etc/crontab文件修改的，但是不论root用户或普通用户的当前身份用crontab -l是查不到/etc/crontab里的配置内容，只能用vim之类的文本查看器查看
+每个用户的crontab -e创建的定时任务配置文件是放在/var/spool/cron的家目录里，两样crontab -l只能查看这目录下的家目录的计划任务内容
+]# cat /var/spool/cron/root 
+20 21 * * *  /usr/bin/echo "helloworld" >/root/1.txt
+]# cat /var/spool/cron/daxiuge8 
+28 21 * * * /usr/bin/echo daxiuge8 >/tmp/1.txt
+]# pwd
+/var/spool/cron
+]# ls
+daxiuge8  root
++++++++++++++++++++++++++++++++
 grep 命令：在文本文件内容，过滤指定字符串
 -i: 忽略大小写
 -v: 取反查找
