@@ -1,0 +1,27 @@
+~]# useradd -s /sbin/nologin  zabbix
+[root@zabbixclient_web1 ~]# yum -y install gcc pcre-devel
+[root@zabbixclient_web1 ~]# tar -xf zabbix-3.4.4.tar.gz 
+[root@zabbixclient_web1 ~]# cd zabbix-3.4.4/
+[root@zabbixclient_web1 zabbix-3.4.4]# ./configure --enable-agent
+[root@zabbixclient_web1 zabbix-3.4.4]# make && make install 
+
+vim /usr/local/etc/zabbix_agentd.conf   agentd(A猪特)
+Server=127.0.0.1,192.168.2.5        //允许哪些主机监控本机
+ServerActive=127.0.0.1,192.168.2.5   //允许哪些主机通过主动模式监控本机
+Hostname=zabbix_server      //设置本机主机名
+LogFile=/tmp/zabbix_server.log    //设置日志文件
+EnableRemoteCommands=1    
+//监控异常后，是否允许服务器远程过来执行命令，如重启某个服务
+UnsafeUserParameters=1      //是否允许自定义key
+
+被监控主机自定义key
+[root@zabbixclient_web1 ~]# vim /usr/local/etc/zabbix_agentd.conf
+Include=/usr/local/etc/zabbix_agentd.conf.d/        //加载配置文件目录
+[root@zabbixclient_web1 ~]# cd /usr/local/etc/zabbix_agentd.conf.d/
+[root@zabbixclient_web1 zabbix_agentd.conf.d]# vim count.line.passwd
+UserParameter=count.line.passwd,wc -l /etc/passwd | awk ' {print $1} '
+////自定义key语法格式:
+//UserParameter=自定义key名称,命令    （Parameter参数[坡罗米特]
+）
+zabbix_get -s 127.0.0.1 -k count.line.passwd
+21

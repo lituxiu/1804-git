@@ -56,8 +56,20 @@ PAD
 [root@room0pc99 桌面]# grep IPADDR  /etc/sysconfig/network-scripts/ifcfg-lo |cut -d=  -f2
 127.0.0.1
 
-遍厉所有shell脚本把解释器声明替换成大秀哥（xargs命令的使用（可遍历文本，直接用sed修改文本），find /root/shell -type f |xargs cat等其它遍厉查看使用）
+遍厉所有shell脚本把解释器声明替换成大秀哥（xargs命令的使用（可遍历文本，直接用sed修改文本），find /root/shell -type f |xargs cat等其它遍厉查看使用）（xargs要配合其他执行动作）
 ]# find /root/shell -type f |xargs sed -i 's/#!\/bin\/bash/daxiuge/'
+
+写出一条命令，能够打印出/root/1目录下包含字符串“da“所有文件
+~]# ls /root/1
+1.txt  8.txt
+ ~]# find /root/1 -type f | xargs cat
+helloworld
+daxiuge8
+~]# find /root/1 -type f | xargs grep -ri "da" 
+/root/1/8.txt:daxiuge8
+~]# find /root/1 -type f | xargs grep -ri "da" -l
+/root/1/8.txt
+
 
 echo -n 不换行 -e后加 \n回车  \t 水平制表符（会横向空格）
 

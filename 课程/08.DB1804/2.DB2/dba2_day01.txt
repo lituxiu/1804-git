@@ -1,4 +1,4 @@
-数据库管理-DBA1 课程内容总结
+﻿数据库管理-DBA1 课程内容总结
 基础：
 搭建mysql数据库服务器
 建库 建表 
@@ -162,9 +162,9 @@ l]# rm  -rf master.info  relay-log.info
 ]# systemctl  restart  mysqld
 MySQL >  show  slave status\G;
 
-MySQL主从同步常用配置选项：
-
+MySQL主从从同步常用配置选项：
 slave_log_updates
+
 +++++++++++++++++++++++++++++++++++
 三、MySQL主从同步模式：
 3.1 主从同步结构模式:

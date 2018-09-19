@@ -30,7 +30,7 @@ listen websrv 0.0.0.0:80
  cookie SERVERID rewrite
  balance roundrobin
  server web1 201.1.1.102:80 cookie app1inst1 check inter 2000 rise 2 fall 5
- server web1 201.1.1.103:80 cookie app1inst2 check inter 2000 rise 2 fall 5
+ server web2 201.1.1.103:80 cookie app1inst2 check inter 2000 rise 2 fall 5
 :wq
 
 vip ~]# systemctl start haproxy
@@ -38,6 +38,10 @@ vip ~]# ps -e | grep haproxy
  6516 ?        00:00:00 haproxy-systemd
  6517 ?        00:00:00 haproxy
  6518 ?        00:00:00 haproxy
+
+遇到问题：haproxy重启服务失败
+systemctl status haproxy得知 Starting proxy websrv: cannot bind socket [0.0.0.0:80] 
+ss -antupl | grep :80查看到apache占用了80商品，把apache端口停点了再重启haproxy服务就行
 
 vip ~]# man /etc/rsyslog.conf
 vip ~]# vim /etc/rsyslog.conf   修改系统日志文件
@@ -252,7 +256,6 @@ vrrp_instance VI_1 {
     track_script {
         check_haproxy
 }}
-
 
 
 

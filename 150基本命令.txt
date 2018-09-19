@@ -26,7 +26,9 @@ tar unzip gzip zip
 ●信息显示命令（12 个）
 
 uname hostname dmesg uptime file stat du df top free date cal
-dmesg查看系统故障信息
+dmesg：查看系统故障信息
+
+top实时显示系统中各个进程的资源占用状况,类似于Windows的任务管理器
 top：执行top怎么看多核cpu信息，按1即可
 
 ●搜索文件命令（4 个）
@@ -81,6 +83,7 @@ ifconfig free fdisk ethtool mii-tool dmidecode dmesg lspci
 echo printf rpm yum watch alias unalias date clear history
 
 eject time nohup nc xargs exec export unset type
+eject弹光驱命令
 
 ●系统性能监视高级命令(12 个)
 

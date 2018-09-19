@@ -8,7 +8,7 @@ NAT：与主机共享的专用网络
 (手提和VM虚拟的两个防火墙也关)
 
 问题二
-手提用无线网络边接的WIFI，vm网卡为桥接模式，分配的ip是192.168.1.0网段，然后vm里的主机的kvm主机的有个vbr虚拟网桥也两样是1网段的，然后启动vbr网桥时报错，如下 
+手提用无线网络接的WIFI，vm网卡为桥接模式，分配的ip是192.168.1.0网段，然后vm里的主机的kvm主机的有个vbr虚拟网桥也两样是1网段的，然后启动vbr网桥时报错，如下 
 ~]# virsh net-start vbr
 错误：开始网络 vbr 失败
 错误：内部错误：接口 eno16777736 已在使用网络
@@ -16,8 +16,10 @@ NAT：与主机共享的专用网络
 （注意点的是主机模式是上不了外网）
 
 问题三（经常）
-vbr网段有时同网段并不通，或者在VM开启kvm创的虚拟后vbr网桥分配不了DHCP的IP。
+vbr网段有时同网段ping不通，或者在VM开启kvm创的虚拟后vbr网桥分配不了DHCP的IP。
 解决：只能用virsh-manager打开的管理器，点灯泡把网卡设备删掉再新增加回vbr选项的网卡即可
+（经常）（注意：在VM主机创建虚拟机后刚开始可PING通，有时在防火墙、selinux和iptables都不限制的情况下，虚拟机和vm主机同网段都ping不通，那么就是存在多个虚拟网桥，虚拟机当前选择的不是自己网段的网桥和vm主机通讯，故ping不通（当前VM网络模式是NAT））
+
 
 问题四pxe装机在真机上创个新系统盘（无系统）后，启动pxe装机时，出现pxe装机时No more network devices Booting from Hard Disk... Boot failed: not boot disk，连系统选项菜单也进不入
 解决，是由于PXE主机的防火墙和SELINUX没有关闭，导致被装系统的机子不能读取到pxelinux.0网卡引导文件

@@ -1,0 +1,240 @@
+mysql迁移流程
+  核心原则，不能影响线上服务
+  原mysql开启binlog
+  使用xtrabackup在线备份mysql
+  安装一台新的mysql服务器，利用备份恢复数据 
+  把原mysql作为master，新mysql做slave实现主从同步
+
+企业中是5.7.17
+
+切换流程
+   停止原mysql
+   把新的mysql升级成master
+   修改php脚本，使用新的mysql服务 
+
+包名mysql-5.7.23-1.el7.x86_64.rpm-bundle.tar
+
+[root@m1 ~]# mkdir mysql
+[root@m1 ~]# tar -xf mysql-5.7.23-1.el7.x86_64.rpm-bundle.tar  -C mysql
+[root@m1 ~]# cd mysql
+[root@m1 mysql]# ls
+mysql-community-client-5.7.23-1.el7.x86_64.rpm
+mysql-community-common-5.7.23-1.el7.x86_64.rpm
+mysql-community-devel-5.7.23-1.el7.x86_64.rpm
+mysql-community-embedded-5.7.23-1.el7.x86_64.rpm
+mysql-community-embedded-compat-5.7.23-1.el7.x86_64.rpm
+mysql-community-embedded-devel-5.7.23-1.el7.x86_64.rpm
+mysql-community-libs-5.7.23-1.el7.x86_64.rpm
+mysql-community-libs-compat-5.7.23-1.el7.x86_64.rpm
+mysql-community-minimal-debuginfo-5.7.23-1.el7.x86_64.rpm
+mysql-community-server-5.7.23-1.el7.x86_64.rpm
+mysql-community-server-minimal-5.7.23-1.el7.x86_64.rpm
+mysql-community-test-5.7.23-1.el7.x86_64.rpm
+（这里一共是12包）
+[root@m1 mysql]# mv mysql-community-server-minimal-5.7.23-1.el7.x86_64.rpm  ../
+(这个包与其它的安装会有冲突，要移走)
+[root@m1 mysql]# yum replsit
+[root@m1 mysql]# yum makecache  (用的是aliyum-CentOS7)
+[root@m1 mysql]# rpm -qa | grep -i mariadb
+mariadb-libs-5.5.56-2.el7.x86_64
+[root@m1 mysql]# rpm -e mariadb-libs-5.5.56-2.el7.x86_64 --nodeps
+[root@m1 mysql]# rpm -qa | grep -i mariadb 无显示mariadb的包了，要不有冲突
+m1 mysql]# rm -rf /etc/my.cnf
+m1 mysql]# yum -y install *
+libaio-0.3.109-13.el7.x86_64.rpm                                         
+perl-JSON-2.59-2.el7.noarch.rpm                                          
+perl-Data-Dumper-2.145-3.el7.x86_64.rpm
+（有以上三个依赖包）
+
+起mysql服务
+[root@m1 mysql]# systemctl start mysqld
+[root@m1 mysql]# systemctl enable mysqld
+[root@m1 mysql]# systemctl is-enabled mysqld
+enabled
+
+m1 mysql]# grep password /var/log/mysqld.log 
+2018-09-14T11:18:06.058922Z 1 [Note] A temporary password is generated for root@localhost: j6-CjQ_eq2)o
+（初始化时是的/var/log.mysqld.log里面查找初始密码）
+
+登陆mysql，要设置
+m1 mysql]# mysql -uroot -p'j6-CjQ_eq2)o'
+mysql> show databases;
+ERROR 1820 (HY000): You must reset your password using ALTER USER statement before executing this statement
+mysql> set global validate_password_policy=0;
+mysql> set global validate_password_length=6;
+mysql> set password=password("123456");
+退出再登陆mysql
+m1 mysql]# mysql -uroot -p123456
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+  这样可正常使用了
+别一台从库m2(主机名)也一样，重复上面的操作）
+
+两台都配置完后，在m1主机上配为master
+
+配置主库master（192.168.1.31）
+m1 mysql]# vim /etc/my.cnf
+[mysqld]
+server_id=31
+log_bin=master31
+binlog_format="mixed"
+m1 mysql]# systemctl restart mysqld
+
+登陆mysql查看master状态
+mysql> show master status\G;
+*************************** 1. row ***************************
+File: master31.000002
+Position: 154
+Binlog_Do_DB: 
+Binlog_Ignore_DB: 
+Executed_Gtid_Set: 
+1 row in set (0.00 sec)
+（reset master这命令是重置master）
+
+不进入mysql的话，登陆用户和密码后加-e "mysql命令" 这样可执行mysql语句
+m1 mysql]# mysql -uroot -p123456 -e "show master status"
+
+
+mysql>  grant replication client,replication slave on *.* to repl@'%' identified by 'repl123';
+
+两台主从都装xtrabackupex
+备份数据 --slave-info意思
+m1 ~]# innobackupex --slave-info --user=root --password=123456 --host=127.0.0.1 --no-timestamp  ./backup
+
+m2 ~]# rsync -aSH 192.168.1.11:/root/backup    ./
+m2 ~]# innobackupex --apply-log backup
+m2 ~]# innobackupex --copy-back backup  注意：这一步操作是要新安装的从库的/var/lib/mysql目录为空为行，要不复制不了
+[root@m2 ~]# cd /var/lib/mysql
+[root@m2 mysql]# ll 
+总用量 122924
+drwxr-x--- 2 root root       48 9月  15 07:55 db1
+-rw-r----- 1 root root      293 9月  15 07:55 ib_buffer_pool
+-rw-r----- 1 root root 12582912 9月  15 07:55 ibdata1
+-rw-r----- 1 root root 50331648 9月  15 07:55 ib_logfile0
+..
+[root@m2 mysql]# chown -R mysql:mysql /var/lib/mysql 要修改权限，要不服务起不来
+
+[root@m2 mysql]# vim /etc/my.cnf
+server-id=32
+log_bin=mysql-bin
+binlog-format=mixed
+
+mysql> change master to master_host="192.168.1.31",master_user="repl",master_password="repl123",master_log_file="master31.000003",master_log_pos=1805;
+mysql> show slave status;
+   Slave_IO_Running: No
+   Slave_SQL_Running: No
+mysql> start slave;
+   Slave_IO_Running: Yes
+   Slave_SQL_Running: Yes
+
+以上偏移量可以在本机的/var/lib/mysql/xtrabackup_info里面看，或在master里show master status \G;查看
+[root@m2 mysql]# vim xtrabackup_info 
+binlog_pos = filename 'master31.000003', position '1805'
+
+主从同步配置完成了，到了切换流程
+++++++++++++++++++++
+选择时间点在晚上凌晨，少人或无人访问时间点
+在m1主机
+mysql> select database(); 显示当前库
+mysql> use mysql
+mysql> update user set host='%' where user="root";
+
+停止原mysql
+把新的mysql升级成master
+在新mysql里stop slave，reset slave, reset master
+
+plugin load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
+rpl_semi_sync_slave_enabled=1
+rpl_semi_sync_master_enabled=1
+rpl_semi_sync_master_timeout=3000
+
+/etc/ssh/ssh_config配置不校验host key，不输入yes
+StrictHostKeyChecking no
+
+relay_log_purge=0不清除binlog日志
+
+
+--ignore_last_failover 发生一次故障切换，在8小时内不执行第二次切换（加这个是忽略上次检测失败时间）
+
+master    
+slave
+
+77到90分钟下午不停服务同步
+SQL_Delay：0  是SQL延迟 主库执行完 ，从库没有执行的延迟时间，备的时间是我拷贝数据一瞬间，你没有往里面写就可以了！
+
+mysql> insert into db1.t1 set name=UUID();
+mysql> select count(*) from db1.t1 ;
+
+~]# cat run.sh  这是个模拟生产环境不间断插入数据环境
+#!/bin/bash
+while :
+do
+  mysql -uroot -p123456 -h192.168.1.31  -D db1 -e "insert into t1 set name=UUID()" >/dev/null
+  sleep 0.5
+done
+
+m1主机运行不断插入数据脚本，把m2从库删掉重新恢复
+m2 ~]# cd /var/lib/mysql
+m2 mysql]# rm -rf *
+
+同步这一瞬间的m1数据时，m1主库还在不断更新数据
+m1 ~]# rsync -aSH --delete backup8/ 192.168.1.32:/root/backup8
+
+m2 ~]# cat backup8/xtrabackup_binlog_pos_innodb 
+master31.000005	71043
+m2 ~]# innobackupex --apply-log backup8/
+m2 ~]# innobackupex --copy-back backup8/
+m2 ~]# chown -R 27.27 /var/lib/mysql
+select count(*) from db1.t1;
+m2 ~]# systemctl start mysqld
+m2 ~]# cat /var/lib/mysql/xtrabackup_binlog_pos_innodb 
+master31.000005	71043
+m2 ~]# mysql -uroot -p123456
+mysql> select count(*) from db1.t1;
++----------+
+| count(*) |
++----------+
+|     1588 |
+
+而m1 ~]# mysql -uroot -p123456 -e" select count(*) from db1.t1;"显示的数在不断增加
+
+以备份过来的backup8文件里的pos值和file授权两步
+mysql> change master to master_host="192.168.1.31",master_user="repl",master_password="repl123",master_log_file="master31.000005",master_log_pos=71043;
+mysql> start slave;
+mysql> show slave status\G;
+  Slave_IO_Running: Yes
+  Slave_SQL_Running: Yes
+mysql>  select count(*) from db1.t1;   --》3281
+mysql>  select count(*) from db1.t1;   --》3282
+mysql>  select count(*) from db1.t1;   --》3283
+再把m1主库脚本停了，再对比两个 select count(*) from db1.t1得出的结果是一样的，证明在主库不间断插入数据时恢复同步从库的操作成功了
+
+88到
+原理：主库更新，从库是不断地追赶更新主库数据，直到更新和主库一样的POS（偏移量）值
+
+SQL_Delay：0  是SQL延迟 主库执行完 ，从库没有执行的延迟时间，备的时间是我拷贝数据一瞬间，你没有往里面写就可以了！（innobackupex程序帮干这事情）
+
+手工实现：
+93-104   99-104第二次重做
+
+m3操作（m1为主库，一主两从,现在是恢复m2）
+mysql> flush tables with read lock; 全局读锁 
+mysql> flush tables;
+mysql> stop slave io_thread 保险：保证偏移量一样
+rsync -aSH --delete /var/lib/mysql 192.168.1.32:/var/lib/mysql
+mysql>unlock tables;
+mysql>start slave io_thread;
+
+m2
+rm -rf /var/lib/mysql/auto.cnf
+start mysqld
+show slave status 是显示两个No
+start slave起不来
+reset master;reset slave;
+change master
