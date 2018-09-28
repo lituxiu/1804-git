@@ -1,3 +1,0 @@
-iptables -I INPUT -p icmp -j REJECT
-
-iptable -I INPUT -P icmp -j ACCEPT

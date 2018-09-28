@@ -1,0 +1,343 @@
+Linux是一种服务器操作系统
+
+  操作系统：一堆软件的集合，可以让计算机硬件正常工作
+
+
+• UNIX诞生,1970-1-1（Linux系统时间的起点）
+
+• Linux之父,Linus Torwalds
+
+  内核：一个软件 调配所有的硬件
+
+    用户-------->内核-------->硬件
+
+– 版本号:主版本.次版本.修订号
+
+
+• 是一套公开发布的完整Linux系统
+– Linux内核 + 各种应用软件
+
+######################################################
+安装RHEL7.4虚拟机
+
+  Ctrl+Alt :鼠标回到真机
+
+####################################################
+– 物理硬盘==>分区规划==>格式化==>读/写文档
+
+格式化：建立数据在空间存储的规则（文件系统）
+
+  Windows默认的文件系统 :  NTFS    FAT
+
+  Linux默认的文件系统 : ext4(RHEL6)  xfs(RHEL7)
+
+             交换文件系统：swap（虚拟内存）缓解物理内存的压力
+
+
+################################################
+Linux目录结构
+
+   根目录  /：所有数据都在此目录下（Linux系统的起点）
+
+  /dev :存放设备文件
+
+
+  标示文件所在：  /dev/nsd/abc/1.txt
+
+################################################
+  hd,表示IDE设备
+  sd,表示SCSI设备
+
+
+  /dev/sda1     /dev/sdb2    /dev/sdc3     /dev/sdd1
+  /dev/hda1
+
+   /dev/sda5:SCSI接口的硬盘，第一块硬盘，第5个分区
+
+#################################################
+• 虚拟控制台切换( Ctrl + Alt + Fn 组合键)
+– tty1:图形桌面
+– tty2~tty6:字符控制台
+
+#################################################### 
+   伪字符终端（图形命令行终端）： 右键“打开终端”
+
+
+• 命令行提示标识的含义
+– [当前用户@主机名 工作目录]$
+
+– 若当前用户是root,则最后一个字符为 #
+[root@svr7 桌面]#
+
+– 否则,最后一个字符为 $
+[teacher@svr7 桌面]$
+
+####################################################
+• pwd — Print Working Directory
+– 用途:查看当前工作目录
+
+• cd — Change Directory
+– 用途:切换工作目录
+– 格式:cd   [目标文件夹位置]
+
+• ls — List
+– 格式:ls [选项]... [目录或文件名]...
+• 常用命令选项
+– -l :以长格式显示
+
+蓝色：目录
+黑色：文本文件
+
+[root@localhost ~]# cd    /       #切换到根目录
+[root@localhost /]# pwd           #显示当前所在路径
+[root@localhost /]# ls            #显示当前目录内容
+
+[root@localhost /]# cd  /boot
+[root@localhost boot]# pwd
+[root@localhost boot]# ls
+
+[root@localhost /]# cd  /root
+[root@localhost root]# pwd
+[root@localhost root]# ls
+
+[root@localhost /]# cd  /home
+[root@localhost home]# pwd
+[root@localhost home]# ls
+
+
+ 以 / 开始的绝对路径
+ 以当前为参照的相对路径
+ .. 表示父目录
+
+[root@localhost /]# cd /etc/pki/
+[root@localhost pki]# pwd
+[root@localhost pki]# cd /etc/pki/CA   #绝对路径
+[root@localhost CA]# pwd
+
+[root@localhost /]# cd /etc/pki/
+[root@localhost pki]# ls
+[root@localhost pki]# cd CA      #相对路径
+[root@localhost CA]# pwd
+[root@localhost CA]# ls
+
+[root@localhost CA]# cd ..     #回到上一层目录
+[root@localhost pki]# pwd
+
+
+[root@localhost /]# ls  /root
+[root@localhost /]# ls  /home
+[root@localhost /]# ls  /boot
+
+查看文本文件内容
+/etc/redhat-release ：储存当前系统版本的文件
+
+[root@localhost /]# cat  /etc/redhat-release
+
+[root@localhost /]# ls   /etc/passwd
+
+[root@localhost /]# cat  /etc/passwd
+
+[root@localhost /]# cat  /etc/default/useradd 
+
+###################################################
+ hostname ：查看设置主机名
+
+[root@localhost /]# hostname
+
+[root@localhost /]# hostname  nsd.tedu.cn
+[root@localhost /]# hostname
+
+[root@localhost /]# hostname A.tedu.cn
+[root@localhost /]# hostname
+
+  新开一个终端验证
+
+####################################################
+ 查看ip地址的命令：ifconfig
+
+   127.0.0.1  :永远代表本机，测试
+
+[root@localhost /]# ping 127.0.0.1
+
+ 按 Ctrl + c 结束正在运行的命令
+
+[root@localhost /]# ifconfig eth0 192.168.1.2/24
+[root@localhost /]# ping 192.168.1.2
+
+[root@localhost /]# ifconfig eth0  #查看eth0网卡ip地址
+[root@localhost /]# ifconfig       #查看所有网卡的ip地址
+
+#####################################################
+Linux完整命令的格式，每一部分之间都要有空格
+      命令字            选项           参数 
+     
+     执行的动作       功能           作用的对象
+
+   -n:显示内容时添加行号
+
+[root@localhost /]# cat  -n   /etc/default/useradd   
+[root@localhost /]# ls  -l  /root
+
+[root@localhost /]# ls  -l  /boot
+
+[root@localhost /]# cat  -n  /etc/passwd
+[root@localhost /]# cat  -n  /etc/fstab
+
+#####################################################
+• 查看内核版本
+[root@localhost /]#  uname  -r       #-r:代表内核
+3.10.0-693.el7.x86_64
+
+• 列出CPU处理器信息，在真机上操作
+[root@localhost /]#  lscpu
+
+• 列出内存信息，在真机上操作
+[root@room9pc01 ~]#  cat /proc/meminfo 
+
+####################################################
+• 关机:poweroff
+[root@svr7 ~]# poweroff
+
+• 重启:reboot
+[root@svr7 ~]# reboot
+
+###################################################
+
+创建目录
+• mkdir — Make Directory
+– 格式: mkdir   [/路径/]目录名...
+
+创建文件
+• touch 
+
+
+[root@localhost /]# mkdir  /root/nsd1804
+[root@localhost /]# ls  /root
+[root@localhost /]# mkdir test
+[root@localhost /]# ls 
+
+[root@localhost /]# touch 1.txt
+[root@localhost /]# ls 
+
+[root@localhost /]# touch  /root/nsd.txt
+[root@localhost /]# ls /root/
+
+[root@localhost /]# mkdir  /root/student   /opt/nsd01
+[root@localhost /]# ls  /root/
+[root@localhost /]# ls  /opt/
+
+######################################################
+
+• less分屏阅读工具
+• 格式:less [选项] 文件名...
+
+– 优势:支持前后翻页
+– 按 上 下 键 进行滚动
+– 按 / 键向后查找
+– 按 q 键退出
+
+[root@localhost /]# less /etc/passwd
+
+
+• head、tail 命令                              172.40.50.114
+– 格式:head -数字  文件名
+      tail -数字 文件名
+
+[root@localhost /]# head -3 /etc/passwd
+[root@localhost /]# head -1 /etc/passwd
+[root@localhost /]# tail -1 /etc/passwd
+
+• grep工具
+– 用途:输出包含指定字符串的行
+– 格式:grep [选项]... '查找条件' 目标文件
+
+[root@localhost /]# grep  root   /etc/passwd
+[root@localhost /]# grep  a     /etc/passwd
+[root@localhost /]# grep  bash   /etc/passwd
+
+#######################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

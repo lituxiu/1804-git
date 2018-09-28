@@ -1,0 +1,22 @@
+装redis
+再把哨兵文件cp到/etc/redis
+
+修改配置文件protected-mode no如果是yes的话只监听bind 127.0.0.1
+redis-cli -p 6379 --->shutdown
+再启动redis-server /etc/redis/6379.conf
+
+其他主机作52主机的从库slaveof 192.168.1.52 6379作主从
+info replication
+
+<?php
+ phpinfo();
+?>
+再去192.168.1.11/info.php可以看php的session放在那里
+
+php -m | grep redis查看php有没有支持redis模板
+php模块在/usr/local/php/lib/php/extensions/
+我的电脑的PHP模板是放在/usr/lib64/php/modules/这里
+
+++++++++++++++++++++++++
+搭建redis缓存服务器
+ ~]# yum -y install gcc gcc-c++

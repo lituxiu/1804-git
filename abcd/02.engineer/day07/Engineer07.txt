@@ -1,0 +1,125 @@
+﻿还原三台虚拟机classroom server  desktop
+[root@server0 ~]# rht-vmctl  reset classroom
+[root@server0 ~]# rht-vmctl  reset server
+[root@server0 ~]# rht-vmctl  reset desktop
+
+虚拟机server0
+[root@server0 ~]# firewall-cmd --set-default-zone=trusted 
+
+虚拟机desktop0
+[root@desktop0 ~]# firewall-cmd --set-default-zone=trusted
+
+#######################################################
+邮件服务
+
+前提：主机名设置为固定静态
+虚拟机Server0：
+[root@server0 ~]# vim /etc/hostname 
+server0.example.com
+
+虚拟机desktop0：
+[root@desktop0 ~]# vim /etc/hostname 
+desktop0.example.com
+
+
+• 电子邮件服务器的基本功能
+– 为用户提供电子邮箱存储空间(用户名@邮件域名)
+– 处理用户发出的邮件 —— 传递给收件服务器
+– 处理用户收到的邮件 —— 投递到邮箱
+
+  SMTP（25）:用户发出邮件的协议
+
+  pop3（110）  IMAP（143）:用户收邮件的协议
+
+#################################################
+快速部署postfix邮件服务器
+
+虚拟机Server0
+1.安装postfix软件
+[root@server0 ~]# rpm -q postfix
+
+2.修改主配置文件/etc/postfix/main.cf
+[root@server0 ~]# vim  /etc/postfix/main.cf
+ 在vim末行模式   :set  nu 显示行号
+  
+  99行  myorigin = server0.example.com   #默认补全的域名后缀
+ 116行 inet_interfaces = all      #本机所有网卡均支持邮件功能
+ 164行 mydestination = server0.example.com  #判断为本域邮件
+
+3.重起postfix服务
+
+[root@server0 ~]# systemctl restart postfix
+#################################################
+在本机虚拟机Server0验证：
+[root@server0 ~]# useradd  yg
+[root@server0 ~]# useradd  xln
+• mail 发信操作
+– mail -s '邮件标题'   -r 发件人   收件人[@收件域]...
+
+• mail 收信操作
+– mail [-u 用户名]
+
+[root@server0 ~]# mail -s '葵花宝典'     -r   yg   xln
+我 练成了，haha
+.
+EOT
+[root@server0 ~]# mail -u xln
+>N  1 yg@server0.example.c  Wed May 16 10:26  18/610   
+& 1   输入编号1查看邮件
+
+#####################################################
+parted分区工具
+
+    GPT分区模式： 128个主分区    最大18EB容量
+
+[root@server0 ~]# parted  /dev/vdb
+(parted) mktable gpt     #指定分区模式
+(parted) print           #输出分区信息
+(parted) mkpart          #划分新的分区
+分区名称？  []? haha         #分区的名字
+文件系统类型？  [ext2]? ext4  #文件系统，无实际意义
+起始点？ 0           
+结束点？ 2G          
+警告: The resulting partition is not properly aligned
+for best performance.
+ 忽略/Ignore/放弃/Cancel? Ignore    #忽略
+(parted) print
+(parted) unit  GB    #利用GB作为显示单位
+(parted) print
+(parted) mkpart 
+ 分区名称？  []? haha 
+ 文件系统类型？  [ext2]? ext4
+ 起始点？ 2G          
+ 结束点? 6G 
+(parted) print   
+######################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

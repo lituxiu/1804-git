@@ -1,0 +1,376 @@
+day02  mysql存储引擎
+什么是存储引擎？ 是Mysql数据库服务自带功能程序。处理表的处理器。
+每种存储引擎有不同的功能和数据存储方式。
+
+查看当前的数据库服务，支持的存储引擎？
+mysql> show  engines;
+
+修改数据库服务默认使用的存储引擎？
+]# systemctl  stop  mysqld
+]# vim /etc/my.cnf
+[mysqld]
+default-storage-engine=myisam
+:wq
+]# systemctl  start  mysqld
+
+mysql> show  engines;
+
+建表是指定表使用的存储引擎
+create table   t2  (id int) engine=存储引擎名；
+create table   t2  (id int) engine=memory;
+create table   t3  (id int) engine=innodb;
+
+修改表使用的存储引擎
+alter  table  表名  engine=存储引擎名；
+
+
+
+
+查看表使用的存储引擎
+show  crate  table  表名；
+
+休息到16:35
+
+常用存储引擎的特点？（myisam   innodb）
+
+myisam 存储引擎特点？
+支持表级锁  （客户端连接数据库服务器后，对表的数据做访问时，若表的存储引擎是myisam的话，会给整张表加锁）
+不支持事务和事务回滚
+
+每个表对应3个表文件
+表.frm    表结构数据      desc  表
+表.MYD  表数据
+表.MYI   表的index索引信息   
+
+InnoDB的特点？
+支持行级锁（客户端连接数据库服务器后，对表的数据做访问时，若表的存储引擎是innodb的话，会只给表中被访问的行加锁）
+支持外键、事务和事务回滚   
+
+
+锁颗度 （锁表的范围）
+行锁
+表锁
+
+锁类型：
+读锁（共享锁）  当对一张表执行查询(select)操作时 会加读锁
+
+写锁（排他锁或互斥锁） 当对一张表执行写（insert update  delete）操作时 会加写锁
+
+
+
+每个表对应2个表文件  
+表.frm  表结构数据
+表.ibd   表数据和index索引
+
+事务（Transactions）：一次sql操作从建立连接到操作完成断开连接的访问过程给称作事务。
+
+支持事务的可以做事务回滚 ：一次sql操作有任意一步没有执行成功会恢复所有操作。（对innodb存储引擎的表 访问时 必须任意一步操作都成功，才能完成操作。）
+
+使用的事务操作是 银行的汇款或转账业务
+
+插卡  --->输入密码 --->登录成功
+转账    卡号   XXXXXX
+          金额   50000
+                                           确定
+           转账成功   -50000    +50000
+                                            退卡
+
+innodb存储引擎的表有对应的事务文件记录所有SQL命令
+cd /var/lib/mysql/
+ibdata1
+ib_logfile0
+ib_logfile1
+
+事务的特点:  ACID
+mysql> set  autocommit=off;
+mysql> show  variables  like "autocommit"; 
+commit ;  手动提交
+rollback;  回滚操作
+
+tty1
+create table   db5.t5(name char(10));
+insert into t5 values("bob"),("bob");
+commit;
+
+tty2
+select  * from  db5.t5;
+
+tty1
+delete  from  db5.t5;
+select  * from  db5.t5;
+
+tty2
+select  * from  db5.t5;
+
+tty1
+rollback;
+select  * from  db5.t5;
+
+delete  from  db5.t5;
+commit;
+rollback;
+select  * from  db5.t5;
+
+tty2
+select  * from  db5.t5;
+
+休息17：45
+
+工作中建表时，如何决定表使用的存储引擎？
+执行查询操作多的表适合使用myisam存储引擎，节省系统资源。
+cpu
+                      myisam
+select  *  from t1 where id <=10;
+
+select  *  from t1 where id >10;
+
+执行写操作多的表适合使用innodb存储引擎，这样并发访问量大。
+            innodb 表锁
+update  t1  set  name="bob" where  id=3;
+update  t1  set  name="bob" where  id=4;
+18:10~19:10
++++++++++++++++++++++++++++++++++++:4
+
+day03  
+修改管数据库理员root本机登录密码（操作系统管理员有权限修改）
+ 
+]# mysqladmin  -hlocalhost -uroot  -p   password  "新密码"
+
+[root@host50 ~]# 
+mysqladmin  -hlocalhost -uroot -p password   "123qqq...A"
+Enter password:    当前登录密码
+
+
+恢复数据管理员root本机登录密码（操作系统管理员有权限恢复）
+]# systemctl  stop  mysqld
+]#  vim /etc/my.cnf
+[mysqld]
+skip_grant_tables
+:wq
+]# systemctl  start  mysqld
+]# mysql
+mysql> 
+select  host,user,authentication_string from mysql.user;
+
+mysql> update  mysql.user   set  authentication_string=password("123456")  where  user="root"  and  host="localhost";
+
+mysql> flush privileges;
+mysql> quit;
+
+]# systemctl  stop  mysqld
+]#  vim /etc/my.cnf
+[mysqld]
+#skip_grant_tables
+:wq
+]# systemctl  start  mysqld
+]#mysql  -uroot  -p123456
+mysql>
+
+休息到  10:15
+用户授权： 在数据库服务器上添加新的连接用户名，默认只有数据库管理员root用户在数据库服务器本机登录有授权权限。默认情况下管理员只能从数据库本机连接服务，在没有其他用户能够连接数据库服务器了。
+
+授权命令格式：
+]# mysql  -uroot  -p123456
+mysql>
+grant    权限列表  on   数据库名  to  用户名@" 客户端地址"   
+identified   by   "密码"   [ with  grant option];
+
+
+with  grant option  可选， 让添加的用户连接服务器后，也有授权权限。
+identified   by   "密码"   新添加的用户连接数据库服务器时，使用的密码
+
+客户端地址  作用：网络中的那些主机可以使用新添加的用户连接数据库服务器。有如下表示方式：
+
+所有主机    %
+网段  192.168.4.%
+指定主机   192.168.4.51
+本机         localhost
+主机名    pc1.tedu.cn  
+域名   %.tedu.cn
+
+用户名   客户端主机连接数据库服务器时使用的名字，授权时自定义既可名字要有标识性。
+
+数据库名 ： 新添加的连接用户，访问后可以操作的库，表示方式如下：
+*.*             所有库 所有表
+库名.*        库下的所有表
+库名.表明   某张表
+
+权限列表 ： 新添加的连接用户，对可以操作的库的访问权限，权限的表示方式如下：
+
+all   所有权限
+命令,命令  某种权限   (例如  select , insert ,delete） 
+
+授权库 mysql 库记录授权信息，使用不同的表记录不同的授权信息
+use  mysql
+user  记录已经添加的连接用户名
+db     记录已添加的连接用户对库的访问权限
+tables_priv  记录已添加的连接用户对表的访问权限
+columns_priv  记录已添加的连接用户对表字段的访问权限
+
+desc  user;
+desc db;
+desc tables_priv;
+desc    columns_priv;
+
+
+select  *  from  user\G;
+select  *  from  db;
+select  *  from  tables_priv;
+select  * from  columns_priv;
+
+select user  from mysql.user;
+select user,host from mysql.user;
+
+查看授权用户的访问权限
+show grants  for  用户@"客户端地址"； 
+
+show grants  for  root@"localhost";
+select  * from user where  user="root" and  host="localhost"\G;
+
+休息到 11:25
+授权例子1
+在50服务器上添加用户admin
+mysql> grant  select,insert  on  db3.*   to  admin@"192.168.4.%"  identified  by  "123qqq...A";
+
+mysql> select user  from mysql.user where user="admin"; 
+
+在客户端51使用服务新添加的用户连接主机50 验证例子1 授权
+]# mysql -h192.168.4.50 -uadmin  -p123qqq...A
+mysql> select @@hostname;
+mysql> select user();
+mysql> show  grants;
+mysql> 执行sql命令验证权限
+
+授权例子2
+在50服务器 授权主机52 可以使用root 连接自己，对所有库表有完全权限且有授权权限 登录密码是123qqq...A
+
+grant  all  on   *.*   to   root@"192.168.4.52"   identified  by  "123qqq...A"   with  grant  option;
+
+在客户端使用服务新添加的用户连接主机50 验证例子2 授权
+[root@host52 ~]# mysql  -h192.168.4.50  -uroot  -p123qqq...A
+mysql> select @@hostname;
+mysql> select user();
+mysql> show  grants;
+mysql> 测试对库表的访问权限
+mysql>  grant  select,update(name,uid)  on  db3.user  to  webuser@"%"  identified by "123qqq...A";  #测试授权权限
+
+在客户端使用有授权权限用户 添加用户连接数据库服务器50
+]#  mysql  -h192.168.4.50  -uwebuser  -p123qqq...A
+mysql> show  grants;
+mysql> 测试访问权限
+
+在50主机上查看授权信息
+select  user,host from mysql.user;
+select  * from  mysql.db \G;
+select  * from  mysql.tables_priv \G;
+select  * from  mysql.columns_priv \G;
+
+
+权限撤销 (删除新添加用户的访问权限)
+MySQL> revoke  权限  on  数据库名   from  用户名@"客户端地址";
+
+select user,host  from mysql.user;
+show  grants  for  root@"192.168.4.52";
+
+revoke   grant option  on  *.*  from  root@"192.168.4.52";
+show  grants  for  root@"192.168.4.52";
+
+select  *  from  mysql.user where  user="root" and  host="192.168.4.52"\G;
+
+修改记录的方式 撤销用户的权限
+mysql> update  mysql.user  set   Delete_priv="N" where  user="root" and  host="192.168.4.52"；
+MySQL>flush  privileges;
+
+
+select  *  from  mysql.user where  user="root" and  host="192.168.4.52"\G;
+
+revoke  all  on  *.*   from  root@"192.168.4.52";
+show  grants  for  root@"192.168.4.52";
+
+
+删除授权用户 （删除添加的连接用户）
+mysql> drop   user   用户名@"客户端地址";
+mysql> drop   user   root@"192.168.4.52";
+
+
+SELECT, INSERT, UPDATE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE 
+修改密码：
+授权用户连接数据库服务器后修改连接密码
+mysql> set  password=password("新密码");
+
+管理员重置授权用户的连接密码
+mysql> set password for 用户名@"客户端地址"=password("新密码");
+
+
+休息到 15:25
++++++++++++++++++++++++++++++++++
+DBA1_DAY05 数据备份与恢复 (DBA )
+*
+1数据备份方式:
+物理备份： 备份库和表对应系统文件
+50:
+cp  -r  /var/lib/mysql     /dbdir.bak
+cp  -r  /var/lib/mysql/mysql    /mysqldb.bak
+cp  -r  /var/lib/mysql/mysql/db.*   /root/ 
+tar  zcvf   /mysql.tar.gz  /var/lib/mysql/*  
+
+scp    -r   /mysqldb.bak   192.168.4.51:/root/
+
+恢复   把备份的文件拷贝会对应的数据库目录，把所有者和组修改为mysql  重启数据库服务器。
+51:
+systemctl  stop  mysqld
+rm  -rf /var/lib/mysql/mysql
+cp -r  /root/mysqldb.bak   /var/lib/mysql/mysql
+chown  -R  mysql:mysql  /var/lib/mysql/mysql
+systemctl  start  mysqld
+
+逻辑备份：  执行备份命令时，根据备份的库表 生产对应的sql命令，把命令保存到指定的文件里。恢复时，执行保存sql命令的备份文件 把数据写回数据库里。
++++++++++++++++++++++++++++++
+2数据备份策略
+完全备份   备份所有数据（通常包括3类对象： 一张表里的所有数据   一个库的所有表    一台数据库服务器的所有数据）
+
+只备份新产生的数据：
+差异备份： 备份自完全备份，后所有新产生的数据
+增量备份： 备份上次备份后，所有新产生的数据
+
+
+完全+差异
+完全+增量 *
+
+周           23:00      bbsdb     文件名     数据
+1 完全                    10          1.sql         10
+2 差异                     5            2.sql         5
+3 差异                     3            3.sql        8
+4                             2             4.sql      10
+5                              1            5.sql      11
+6                             7             6.sql      18
+7 差异                     2              7.sql      20
+
+周           23:00      bbsdb     文件名
+1 完全                     10         1.sql        10
+2 增量                     1            2.sql           1
+3                             3            3.sql           3
+4                                7              4.sql      7
+5                               4               5.sql      4
+6                                2                  6.sql  2
+7增量                          10              7.sql    10
+
+
+工作中使用crond服务 执行备份脚本（在备份脚本调用备份命令）做数据备份
+
+
+++++++++++++++++++++++++++++++
+3备份数据和数据恢复：
+4完全备份：mysqldum 
+  完全恢复：mysql
+5增量备份与恢复：
+1、启用binlog日志 **
+2、安装第3方软件提供的命令innobackupex  ***
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-DBA1 day01-2
+﻿DBA1 day01-2
 
 set global validate_password_policy=0;
 set global validate_password_length=6;(设密码长度为6)
@@ -8,6 +8,9 @@ create table daxiuge.高岭足球队(姓名 char(10),年龄 int(1))default chars
 desc daxiuge.高岭足球队;
 mysql> create table 高岭队 select * from db3.高岭足球队;
 mysql> insert into 高岭队 values("李土秀",26),("李强",22);
+
+创库：create database 库名；
+创表：create table 库名.表名（字段参数）
 
 alter修改表结构
 (alter table 库.表  action)

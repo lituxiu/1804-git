@@ -1,0 +1,54 @@
+查看镜像快照 ： rbd snap ls image
+创建镜像快照
+              （创建）                     （快照名）
+rbd snap create image --snap image-snap1
+[root@node1 ~]# rbd snap ls image
+SNAPID     NAME               SIZE 
+     4        image-snap1      15360 MB 
+[root@client ~]# rm -rf /daxiuge888/888
+[root@client ~]# umount /daxiuge888/
+还原快照
+                                             （回滚）                         （快照名）
+[root@node1 ~]# rbd snap rollback image --snap image-snap1
+Rolling back to snapshot: 100% complete...done.
+[root@client ~]# mount /dev/rbd0/ /daxiuge888
+[root@client ~]# ls /daxiuge888
+888
+（要卸载再还原，再挂载）
+保护快照
+[root@node1 ~]# rbd snap protect image --snap image-snap1
+[root@node1 ~]# rbd snap rm image --snap image-snap1
+rbd: snapshot 'image-snap1' is protected from removal.
+2018-08-10 23:54:19.285845 7f0283234d80 -1 librbd::Operations: snapshot is protected
+（以上是删除保护的快照是删除不了）
+[root@node1 ~]# rbd clone image --snap image-snap1 image-clone --image-feature layering
+[root@node1 ~]# rbd info image-clone
+rbd image 'image-clone':
+	size 15360 MB in 3840 objects
+	order 22 (4096 kB objects)
+	block_name_prefix: rbd_data.fabd238e1f29
+	format: 2
+	features: layering
+	flags: 
+	parent: rbd/image@image-snap1    （父镜像快照）
+	overlap: 15360 MB
+
+[root@client ~]# umount /daxiuge888
+显示磁盘映射
+[root@client ~]# rbd showmapped
+id pool image snap device    
+0  rbd  image -    /dev/rbd0 
+取消RBD磁盘映射
+[root@client ~]# rbd unmap /dev/rbd/rbd/image  （有多个就重复多次命令）
+
+
+
+
+
+
+
+
+
+
+
+

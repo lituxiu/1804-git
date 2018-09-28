@@ -18,7 +18,7 @@
 
 ++++++++++++++++++++++
 主从同步原理
-master：主要是记录数据的操作
+master：主要是记录数据的操作到binlog里
 server_id
 开启binlog日志  logbin= (不要路径的话是直接在/var/lib/mysql目录里)
 设置binlog格式  binlog_format="mixed"
@@ -26,5 +26,3 @@ server_id
 slave:主要是运行slave-IO和slave-SQL两个线程（也设置server_id）
 slave-IO:线程主要是把master的binlog日志里的SQL复制到本机的relay-log文件中
 slave-SQL:线程主要是执行relay-log文件，实现master数据重现 
-
-

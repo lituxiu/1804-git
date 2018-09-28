@@ -1,0 +1,262 @@
+2018年8月7日
+HAProxy服务器
+4层调度 http://baidu.com
+7层调度(web调度)http://baidu.com/sport
+
+nginx(enjiegesi)
+作为代理服务器,HAProxy比nginx性能要强,但集群多时先择LVS优先
+
+环境
+1台haproxy 201.1.1.100
+2台应用服务器  201.1.1.102和201.1.1.103
+(在昨天的环境稍微修改下即可)
+vip ~]# ipvsadm -C
+rip11 ~]# ip a del dev lo 201.1.1.101/32
+rip11 ~]# ip a ls dev lo 
+
+vip ~]# yum -y install haproxy
+vip ~]# vim /etc/haproxy/haproxy.cfg
+在63行未行模式 ,$d 删除后面的内容
+# main frontend which proxys to the backends
+#---------------------------------------------------------------------
+listen stats
+ bind 0.0.0.0:1080
+ stats refresh 30s
+ stats uri /mystats
+ stats realm Haproxy manager
+stats auth admin:admin
+
+listen websrv 0.0.0.0:80
+ cookie SERVERID rewrite
+ balance roundrobin
+ server web1 201.1.1.102:80 cookie app1inst1 check inter 2000 rise 2 fall 5
+ server web2 201.1.1.103:80 cookie app1inst2 check inter 2000 rise 2 fall 5
+:wq
+
+vip ~]# systemctl start haproxy
+vip ~]# ps -e | grep haproxy
+ 6516 ?        00:00:00 haproxy-systemd
+ 6517 ?        00:00:00 haproxy
+ 6518 ?        00:00:00 haproxy
+
+遇到问题：haproxy重启服务失败
+systemctl status haproxy得知 Starting proxy websrv: cannot bind socket [0.0.0.0:80] 
+ss -antupl | grep :80查看到apache占用了80商品，把apache端口停点了再重启haproxy服务就行
+
+vip ~]# man /etc/rsyslog.conf
+vip ~]# vim /etc/rsyslog.conf   修改系统日志文件
+第54行 *.info;mail.none;authpriv.none;cron.none                /var/log/messages   //除了mail,authpriv,cron的日志,其它的info都存放在/var/log/messages
+下面的去注释
+ 15 $ModLoad imudp
+ 16 $UDPServerRun 514 
+ 17 local2.*  /var/log/haproxy.log
+:wq
+vip ~]# systemctl restart rsyslog
+vip ~]# systemctl restart haproxy
+
+访问代理服务器VIP主机的两个网段都可以
+[root@room9pc01 ~]#  curl 201.1.1.100
+rs2
+[root@room9pc01 ~]#  curl 201.1.1.100
+rs1
+[root@room9pc01 ~]#  curl 201.1.1.100
+rs2
+[root@room9pc01 ~]#  curl 201.1.1.100
+rs1
+[root@room9pc01 ~]#  curl 192.168.4.100
+rs1
+[root@room9pc01 ~]#  curl 192.168.4.100
+rs2
+[root@room9pc01 ~]#  curl 192.168.4.100
+rs1
+[root@room9pc01 ~]#  curl 192.168.4.100
+rs2
+
+后端服务器的日志里显示客户端的ip
+rip12 ~]# vim /etc/httpd/conf/httpd.conf
+196     LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User    -Agent}i\"" combined
+改为
+196     LogFormat "%{X-Forwarded-For}i
+ %l %u %t \"%r\" %>s %b \"%{Re    ferer}i\" \"%{User-Agent}i\"" combined
+修改内容是把%h改为%{X-Forwarded-For}i
+
+在真机上访问再去查看日志
+rip12 ~]# systemctl restart httpd
+rip11 ~]# tail -f /var/log/httpd/access_log
+201.1.1.100 - - [08/Aug/2018:14
+rip12 ~]# tail -f /var/log/httpd/access_log
+201.1.2.254 - - [08/Au
+
+haproxy不需要在real server主机设置lo网卡,不走DR路线,像nginx反向代理那样实现负载均衡
++++++++++++++++++++++++++++++++++++++++++++++++++++
+红帽自带软件实现HA
+rhcs 
+pacemaker+corosync(重量级)
+
+keepalived实现HA集群
+   支持VRRP功能:虚拟路由冗余协议
+
+环境
+rs1:201.1.1.102
+rs2:201.1.1.103
+ds1:201.1.1.100
+ds2:201.1.1.99
+vip:201.1.1.101
+client:201.1.1.254
+
+在2台调度器ds1和ds2上装keepalived
+ds1 ~]# yum -y install keepalived
+ds2 ~]# yum -y install keepalived
+ds1 ~]# vim /etc/keepalived/keepalived.conf 
+! Configuration File for keepalived
+global_defs {
+   router_id ds1
+}
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth2
+    virtual_router_id 51
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        201.1.1.101
+    }
+}
+virtual_server 201.1.1.101 80 {
+    delay_loop 6
+    lb_algo rr
+    lb_kind DR
+    #persistence_timeout 50
+    protocol TCP
+
+    real_server 201.1.1.102 80 {
+        weight 1
+	    TCP_CHECK {
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+            }
+    }
+    real_server 201.1.1.103 80 {
+        weight 1
+	    TCP_CHECK {
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+}}}
+:wq
+scp一份给ds2,再在ds2以下三处
+global_defs {
+   router_id ds2              //改为ds1改为ds2
+}
+vrrp_instance VI_1 {
+    state BACKUP             //MASTER改为BACKUP
+    interface eth2
+    virtual_router_id 51
+    priority 50             //从100改为50
+:wq
+重启服务
+[root@ds1 ~]# systemctl stop haproxy
+[root@ds1 ~]# ps -e | grep haproxy
+[root@ds1 ~]# systemctl start keepalived
+[root@ds1 ~]# ps -e | grep keepalived
+ 2077 ?        00:00:00 keepalived
+ 2078 ?        00:00:00 keepalived
+ 2079 ?        00:00:00 keepalived
+
+会在master主机的eth2下自动生成201.1.1.101/32
+
+vip配置成不抢占
+    state BACKUP
+    nopreempt
+:wq
+curl http://201.1.1.101
+debug:
+1.ping 201.1.1.101
+2.在ds服务器,ipvsadm -ln,如果看不到规则,则:
+  1)检查keepalived配置文件
+  2)检查real server的httpd服务是否有启动
+3.检查real server是否绑定vip,以及是否调整了内核
+
+++++++++++++++++++++++++++++++++++++++++++++++++
+keepalived+haproxy
+2台haproxy实现HA
+2台应用服务器---httpd
+1台client
+haproxy1(ds1)  201.1.1.100
+haproxy2(ds2)  201.1.1.99
+vip  201.1.1.101
+rs1  201.1.1.102
+rs2  201.1.1.103
+
+两台删
+rip11 ~]# ip a del dev lo 201.1.1.101/32
+两台停
+[root@ds1 ~]# systemctl stop keepalived
+[root@ds1 ~]# ipvsadm -ln    没规则了
+[root@ds1 ~]# ip a ls dev eth2  没自动vip了
+配置在ds1和ds2都haproxy集群(ds1先前配好了)
+ds2 ~]# yum -y install haproxy
+ds1 ~]# scp -r /etc/haproxy/haproxy.cfg   201.1.1.99:/etc/haproxy/
+ds2 ~]# systemctl start haproxy.service
+[root@room9pc01 ~]# curl 201.1.1.99
+rs2
+[root@room9pc01 ~]# curl 201.1.1.99
+rs1
+再在ds1和ds2
+    virtual_ipaddress {
+        201.1.1.101
+    }
+}
+后面全删 ,$d
+重启服务
+ds1 ~]# systemctl restart keepalived
+ds2 ~]# systemctl restart keepalived
+[root@room9pc01 ~]# curl 201.1.1.101
+rs1
+[root@room9pc01 ~]# curl 201.1.1.101
+rs2
+haproxy健康检测
+ds1 ~]# systemctl stop haproxy
+[root@room9pc01 ~]# curl 201.1.1.101
+curl: (7) Failed connect to 201.1.1.101:80; 拒绝连接
+[root@room9pc01 ~]# curl 201.1.1.101
+curl: (7) Failed connect to 201.1.1.101:80; 拒绝连接
+[root@ds1 ~]# systemctl stop keepalived
+[root@room9pc01 ~]# curl 201.1.1.101
+rs1
+[root@room9pc01 ~]# curl 201.1.1.101
+rs2
+只有keepalived停止了,才启动备用的代理服务器ds2,而haproxy服务停了是起不了启用备用代理服务器的作用
+两台代理主机ds1和ds2也要写脚本来解决此问题
+.0
+curl -I localhost &> /dev/null
+if [ $? -ne 0 ] ;then
+ systemctl stop keepalived
+fi
+
+vim /etc/keepalived/keepalived.conf
+! Configuration File for keepalived
+
+global_defs {
+   router_id ds1
+}
+vrrp_script check_haproxy {
+    script "/etc/keepalived/check_haproxy_status.sh"
+    inerval 5
+}
+vrrp_instance VI_1 {
+    state BACKUP
+  .........
+  .........
+    track_script {
+        check_haproxy
+}}
+
+
+
+

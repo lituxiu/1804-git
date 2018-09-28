@@ -1,0 +1,284 @@
+
+day03
+mysql存储引擎***
+管理表记录 select  update  insert  delete
+基本匹配条件 > >=  <  <=  = !=
+                     =   !=
+                     in   not  in  \  between  ...  and  ...
+                     is  null    \   is not  null
+                     or   \  and  \  !   not  \   ( )
+                     distinct 字段名
+高级匹配条件
+模糊查询   
+where   字段名   like    '表达式'；
+_  匹配任意一个字符    
+% 匹配零个或多个字符
+
+select  name  from user  where name like '___' ;
+select  name  from user  where name like '%a%' ;
+select  name  from user  where name like '%____%' ;
+
+select  id,name  from  user where name is null;
+select  id,name  from  user where name="";
+select  id,name  from  user where name like '%' ;
+
+正则匹配
+where  字段名  regexp  '正则表达式'；
+
+
+select  name from user 
+where  name  regexp  '^a.*t$';
+
+insert into user(name)values("ya9ya"),("7yaya"),("yaya8");
+
+select  name from user 
+where  name  regexp  '[0-9]';
+
+select name,uid from user 
+where  uid regexp  '....';
+
+select name,uid from user 
+where  uid regexp  '^....$';
+
+
+则计算  +  -   *   /  %  （字段类型 必须是数值类型）
+
+update  user  set  uid=uid+1  where id<=10;
+
+select  name,uid,gid , uid + gid  jieguo  from user where name="root";
+
+select  name,uid,gid , (uid + gid)  /  2   pjz  from user where name="root";
+
+alter  table  user  add  age  tinyint(2)  unsigned default  18 after  name;
+
+select  name ,age from user  where name ="root";
+select  name ,age , 2018-age  s_year from user  where name ="root";
+
+休息到 10:20
+
+聚集函数（MySQL服务自带的对数据做统计的命令）；
+字段类型 必须是数值类型
+
+select  sum(uid) from user;
+select  sum(uid) from user where id<=10;
+select  avg(uid) from user where id<=10;
+select min(uid) from user where id<=10;
+select max(uid) from user where id<=10;
+select name from user where  shell="/bin/bash";
+select count(name) from user where  shell="/bin/bash";
+
+
+select sum(uid),avg(uid),max(uid),min(gid) from user;
+
+select count(*) from user;
+
+select count(id) ,count(name) from user;
+
+错误用法：
+select name,max(gid)from user;
+select name  from user  where  gid=max(gid);
+
+++++++++++++++++++++++++++++++++++++++
+操作查询结果  分组 排序  限制显示函数  过滤数据 
+
+sql查询  group  by   字段名； 查询分组
+select  shell  from user;
+
+select  shell  from user   group  by  shell;
+
+select  distinct shell  from user;
++++++++++++++++++++++++++++++
+sql查询  order   by   字段名   排序方式；  排序
+                                            asc   desc
+select name,uid from  user where uid>=10  and uid<=500;
+
+select name,uid from  user where uid>=10  and uid<=500 
+order by  uid desc ;
+
+
+limit 限制查询结果显示的行数
+sql查询 limit   数字；   显示查询结果的前 几行
+sql查询 limit   数字1 ， 数字2； 显示指定范围内的行；(0 表示第1行)
+                      
+
+select  name,shell from user;
+select  name,shell from user where uid  <=500;
+
+select  name,shell from user  limit  5;
+select  name,shell from user where uid  <=500  limit  2;
+
+select  name,shell from user where uid  <=500  limit  1,5;
+
+select  * from user ;
+select  * from user  limit  0,3;
+select  * from user  limit  1,1;
+
+select  * from user  limit  4,3;
++++++++++++++++++++++++++++++
+having 条件   在查询结果里查找数据
+sql查询   having  条件；
+
+select name,uid from user  where uid >=1000 
+having name   is  null;
+
+select name,uid from user  where uid >=1000 
+having  uid=65534;
+
+select name,uid from user  where uid >=1000  
+having name="bob";
+++++++++++++++++++++++++++++++++++++++++
+
+MySQL存储引擎
+
+day04
+多表查询  ***
+MySQL管理工具
+用户授权
+
+一、多表查询  ***
+            stu_id   name   class   
+缴费表
+班级表
+成绩表
+就业表
+
+1.1 复制表 （作用： 备份表 、 快速建表）
+mysql>   create  table  表名  sql查询；
+create database  db4;
+use  db4;
+
+create  table  user2  select  * from db3.user;
+show  tables;
+select  * from user2;
+
+create  table  user3  select  name,uid,shell from db3.user  order by  uid  desc limit  5;
+select  * from user3;
+
+select  * from  user  where  shell="abc";
+create  table  user4   select  * from  db3.user  where  1=2;
+
+select  * from user4;
+desc  user4;
+
+1.2  多表查询
+多表查询
+格式 1   :  select  字段名列表  from 表名列表[  where  条件]；
+
+use  db4;
+create table  t1   select  name,uid,shell from db3.user limit 3;
+select   *  from t1;
+
+create  table   t2  
+select  name,password,uid,homedir from db3.user limit  5;
+select   *  from t2;
+
+
+
+笛卡尔集            3 * 5  =  15
+select  *  from  t1,t2;
+
+select  t1.name ,t2.name  from  t1,t2;
+select  t1.* ,t2.password,t2.homedir   from  t1,t2;
+
+select  t1.* ,  t2.password , t2.homedir   from  t1,t2
+where  t1.uid  =  t2.uid;
+
+休息到 15:20
+
+格式2  嵌套查询： 把内层的查询结果作为外层查询的查询条件
+select  字段名列表  from  表名  where  条件 （select  字段名列表  from  表名  where  条件）；
+
+
+select name   from db3.user order by  uid desc  limit  1;
+
+select   avg(uid)  from db3.user;
+select name,uid  from db3.user where uid<( select   avg(uid)  from db3.user);
+
+
+select  name from db4.t1;
+select  name  from db3.user where  name in (select  name from db4.t1);
+ 
+
+格式3 连接查询
+左连接查询 ： 以左边的表为主显示查询结果
+select 字段名列表   from   表名A   left  join  表名B  on   条件；
+
+右连接查询 ： 以右边的表为主显示查询结果
+select 字段名列表   from   表名A  right  join 表名B  on   条件；
+
+create  table   db4.t3  select name,uid,shell  from db3.user  limit 5;
+select  * from db4.t3;
+
+create  table   db4.t4  select name,uid,shell  from db3.user  limit 7;
+select  * from db4.t4;
+
+
+select  * from   t3  left join  t4 on  t3.uid = t4.uid;
+
+select  * from   t3  right join  t4 on  t3.uid = t4.uid;
+
+select  t3.name,t4.name from   t3  right join  t4 on  t3.uid = t4.uid;
+
+休息到 ： 16:30
+
+二、MySQL图形管理工具 *
+192.168.4.50
+phpMyAdmin-2.11.11-all-languages.tar.gz
+
+步骤1 ：部署运行环境lamp 或 lnmp
+rpm  -q httpd
+yum  -y  install  httpd
+systemctl   start  httpd  
+systemctl   enable  httpd  
+
+rpm  -q  php
+rpm  -q  php-mysql
+yum  -y  install  php  php-mysql
+systemctl   restart  httpd
+
+步骤2 ：安装软件phpMyAdmin
+tar  -zxvf  phpMyAdmin-2.11.11-all-languages.tar.gz
+ls  phpMyAdmin-2.11.11-all-languages
+
+mv  phpMyAdmin-2.11.11-all-languages  /var/www/html/phpadmin
+
+cd  /var/www/html/
+
+步骤3 : 创建配置，指定管理数据库服务器。
+]#cd  phpadmin
+]#cp config.sample.inc.php    config.inc.php
+]#vim   config.inc.php
+<?php
+.....
+17 $cfg['blowfish_secret'] = 'pljabc';
+31 $cfg['Servers'][$i]['host'] = 'localhost';
+......
+?>
+:wq
+步骤4 : 客户端访问
+打开浏览器输入URL    http://192.168.4.50/phpadmin
+                                   用户 root  
+                                   密码 123456
+
+休息到  17:40
+三、用户授权 ** （在数据库服务器上添加 连接时使用的用户名）
+50
+]# mysql  -uroot  -p123456
+mysql> grant  select,insert  on  db3.*   to  admin@"192.168.4.%"  identified  by  "123qqq...A";
+
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

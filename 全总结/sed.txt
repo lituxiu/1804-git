@@ -1,5 +1,11 @@
 扩展正则表达式 （） +  ？  []
 
+sed显示行号
+]# sed -n '/baseurl/=' epel.repo
+3
+12
+21
+
 查看系统的空闲内存
 free | awk '/Mem/{print $4}'  //awk '/Mem/{print $2}'是总内存量
 

@@ -125,8 +125,10 @@ daxiuge8  root
 grep 命令：在文本文件内容，过滤指定字符串
 -i: 忽略大小写
 -v: 取反查找
--c:区配到条件的行数（区配空行-c "^$"）
+-c:count统计区配到条件的行数（区配空行-c "^$"）
+-C：context（大写）匹配后加数字的上下文（grep -C 3  "adm" /etc/passwd这是匹配adm行的上下行各3行都一起显示 （共显示7行））
 -o:只显示一行匹配到的字符（grep是默认显示匹配条件的整行）
+-q:不显示结果，只显示返回状态
 显示/etc/login.defs有效信息(去除注释，去除空行)
 # grep -v  ^#  /etc/login.defs  |  grep  -v  ^$
  ~]# grep -c "^$"  /etc/passwd  在这个文件里有3行空行
@@ -139,6 +141,15 @@ root
 root
 root
 root
+grep -q的实例(-q来显示结果，只显示返回状态)
+~]# echo abc |grep a
+abc
+~]# echo abc |grep -q a
+~]# echo $?
+0
+~]# echo abc |grep -q x
+~]# echo $?
+1
 
 基本权限
 访问方式(权限)

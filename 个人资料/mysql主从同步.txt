@@ -143,7 +143,8 @@ binlog_pos = filename 'master31.000003', position '1805'
 在m1主机
 mysql> select database(); 显示当前库
 mysql> use mysql
-mysql> update user set host='%' where user="root";
+mysql> update mysql.user set host='%' where user="root";
+mysql> flush privileges;
 
 停止原mysql
 把新的mysql升级成master
